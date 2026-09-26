@@ -1,6 +1,8 @@
-/* Interactive StepCAD studio: replays real StepCAD programs one operation at a time.
-   Meshes and per-step IoU were produced offline by executing each CadQuery program
-   line by line (see static/models/examples.json). */
+/* StepCAD interactive replay.
+   Stage I: the policy's CadQuery program, executed one operation at a time.
+   Stage II: the search edits (policy program -> refined program) applied one at a time in program order.
+   Every intermediate program is real and was executed offline; IoU is measured against the input mesh.
+   Material added / removed by each search edit comes from exact B-rep Booleans between consecutive programs. */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -11,272 +13,280 @@ const $ = s => document.querySelector(s);
 const canvas = $('#viewer');
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+const KIND = {
+  sketch: 'Edit sketch', ccut: 'Complement cut', refine: 'Refine parameters',
+  skip: 'Skip operation', replace: 'Replace operation', add: 'Add operation',
+};
+const COL = { policy: new THREE.Color('#3b7ddd'), search: new THREE.Color('#0f9f86') };
+
 /* ---------- renderer / scene ---------- */
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.9;
+renderer.toneMappingExposure = 1.0;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-const pmrem = new THREE.PMREMGenerator(renderer);
-scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(renderer), 0.04).texture;
 
 const camera = new THREE.PerspectiveCamera(32, 1, 0.01, 100);
-camera.position.set(3.6, 2.6, 4.2);
+camera.position.set(3.6, 2.8, 4.2);
 const controls = new OrbitControls(camera, canvas);
-controls.enableDamping = true;
-controls.dampingFactor = 0.08;
-controls.autoRotate = !reduced;
-controls.autoRotateSpeed = 1.1;
-controls.minDistance = 1.6;
-controls.maxDistance = 12;
-controls.enablePan = false;
+Object.assign(controls, { enableDamping: true, dampingFactor: 0.08, autoRotate: !reduced, autoRotateSpeed: 0.9, minDistance: 1.5, maxDistance: 12, enablePan: false });
 
-const key = new THREE.DirectionalLight(0xffffff, 1.6);
+const key = new THREE.DirectionalLight(0xffffff, 1.5);
 key.position.set(3, 6, 4);
 key.castShadow = true;
 key.shadow.mapSize.set(1024, 1024);
 Object.assign(key.shadow.camera, { left: -2.5, right: 2.5, top: 2.5, bottom: -2.5, near: 0.5, far: 20 });
-key.shadow.radius = 6;
-key.shadow.bias = -0.0004;
-key.shadow.normalBias = 0.025;
-scene.add(key, new THREE.HemisphereLight(0xbfd6ff, 0x0b1220, 0.5));
+key.shadow.radius = 6; key.shadow.bias = -0.0004; key.shadow.normalBias = 0.025;
+scene.add(key, new THREE.HemisphereLight(0xffffff, 0xdfe5ee, 0.55));
 
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(12, 12), new THREE.ShadowMaterial({ opacity: 0.32 }));
-floor.rotation.x = -Math.PI / 2;
-floor.receiveShadow = true;
-const grid = new THREE.GridHelper(8, 32, 0x2b4066, 0x1a2842);
-grid.material.transparent = true;
-grid.material.opacity = 0.55;
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(12, 12), new THREE.ShadowMaterial({ opacity: 0.12 }));
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
+const grid = new THREE.GridHelper(8, 32, 0xc9d1dc, 0xe1e6ed);
+grid.material.transparent = true; grid.material.opacity = 0.8;
 scene.add(floor, grid);
+const stage = new THREE.Group(); scene.add(stage);
 
-const stage = new THREE.Group();
-scene.add(stage);
+/* ---------- materials & objects ---------- */
+const solidMat = new THREE.MeshPhysicalMaterial({ color: COL.policy, metalness: 0.05, roughness: 0.45, clearcoat: 0.3, clearcoatRoughness: 0.4, envMapIntensity: 0.6, emissive: 0xffffff, emissiveIntensity: 0, side: THREE.DoubleSide });
+const edgeMat = new THREE.LineBasicMaterial({ color: 0x1b2433, transparent: true, opacity: 0.45 });
+const ghostMat = new THREE.MeshBasicMaterial({ color: 0x8a9bb8, transparent: true, opacity: 0.08, depthWrite: false, side: THREE.DoubleSide });
+const ghostEdgeMat = new THREE.LineDashedMaterial({ color: 0x6d7f9e, transparent: true, opacity: 0.5, dashSize: 0.035, gapSize: 0.025, depthWrite: false });
+const addMat = new THREE.MeshStandardMaterial({ color: 0x22b35e, emissive: 0x22b35e, emissiveIntensity: 0.35, roughness: 0.5, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, transparent: true, opacity: 0.95 });
+const remMat = new THREE.MeshStandardMaterial({ color: 0xe5484d, emissive: 0xe5484d, emissiveIntensity: 0.25, roughness: 0.6, transparent: true, opacity: 0.38, depthWrite: false, side: THREE.DoubleSide });
+const remEdgeMat = new THREE.LineBasicMaterial({ color: 0xc9363b, transparent: true, opacity: 0.8 });
 
-/* ---------- materials ---------- */
-const COL_POLICY = new THREE.Color('#5aa2ff');
-const COL_FINAL = new THREE.Color('#2fd1b2');
-const solidMat = new THREE.MeshPhysicalMaterial({ color: COL_POLICY, metalness: 0.05, roughness: 0.42, clearcoat: 0.35, clearcoatRoughness: 0.35, envMapIntensity: 0.55, emissive: 0xffffff, emissiveIntensity: 0, side: THREE.DoubleSide });
-const ghostMat = new THREE.MeshBasicMaterial({ color: 0xcfe0ff, transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide });
-const ghostEdgeMat = new THREE.LineBasicMaterial({ color: 0x9cc4ff, transparent: true, opacity: 0.32, depthWrite: false });
-const edgeMat = new THREE.LineBasicMaterial({ color: 0x0b1220, transparent: true, opacity: 0.55 });
+const solid = new THREE.Mesh(undefined, solidMat); solid.castShadow = true; solid.receiveShadow = true;
+const solidEdges = new THREE.LineSegments(undefined, edgeMat);
+const ghost = new THREE.Mesh(undefined, ghostMat); ghost.renderOrder = 3;
+const ghostEdges = new THREE.LineSegments(undefined, ghostEdgeMat); ghostEdges.renderOrder = 4;
+const addMesh = new THREE.Mesh(undefined, addMat); addMesh.renderOrder = 2;
+const remMesh = new THREE.Mesh(undefined, remMat); remMesh.renderOrder = 5;
+const remEdges = new THREE.LineSegments(undefined, remEdgeMat); remEdges.renderOrder = 6;
+[solid, solidEdges, ghost, ghostEdges, addMesh, remMesh, remEdges].forEach(o => { o.visible = false; stage.add(o); });
 
-/* ---------- state ---------- */
-let examples = [], cur = 0, step = 0, playing = !reduced, userTouched = false, visible = true;
-const cache = new Map();          // key -> { target, steps: [geom], best }
-let solid = null, solidEdges = null, ghost = null, ghostEdges = null;
-let flash = 0, playTimer = null;
-
+/* ---------- data ---------- */
+let examples = [], cur = 0, idx = 0, playing = !reduced, userTouched = false, visible = true, timer = null, pulse = 0, flash = 0;
+const cache = new Map();
 const loader = new GLTFLoader();
-const loadingEl = $('#viewLoading');
+const upFix = new THREE.Matrix4().makeRotationX(-Math.PI / 2);   // CadQuery is Z-up, three.js is Y-up
 
-function prepGeometry(mesh) {
+function prep(mesh) {
   let g = mesh.geometry.clone();
   g.applyMatrix4(mesh.matrixWorld);
   g.deleteAttribute('normal');
   g = toCreasedNormals(g, THREE.MathUtils.degToRad(28));
+  g.applyMatrix4(upFix);
   return g;
 }
 
-async function loadExample(ex) {
+async function load(ex) {
   if (cache.has(ex.key)) return cache.get(ex.key);
-  const gltf = await loader.loadAsync(`static/models/${ex.key}.glb`);
+  const gltf = await loader.loadAsync(`./static/models/${ex.key}.glb`);
   gltf.scene.updateMatrixWorld(true);
-  const byName = {};
-  gltf.scene.traverse(o => { if (o.isMesh) byName[o.name] = o; });
-  const find = n => byName[n] || Object.values(byName).find(m => m.name.startsWith(n) || (m.parent && m.parent.name === n));
-  const target = prepGeometry(find('target'));
-  const steps = ex.steps.map((_, k) => prepGeometry(find(`gen_${String(k).padStart(2, '0')}`)));
-  const best = prepGeometry(find('best'));
-  // programs are Z-up (CadQuery); three.js is Y-up
-  const up = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
-  [target, ...steps, best].forEach(g => g.applyMatrix4(up));
-  // normalise: centre on target bbox, scale so the largest side is 2 units, rest on floor
-  target.computeBoundingBox();
-  const bb = target.boundingBox, size = new THREE.Vector3(), c = new THREE.Vector3();
+  const raw = {};
+  gltf.scene.traverse(o => { if (o.isMesh) raw[o.name] = o; });
+  const get = n => (raw[n] ? prep(raw[n]) : null);
+  const e = { target: get('target'), policy: ex.policy.map((_, k) => get(`p_${String(k).padStart(2, '0')}`)), search: [], edges: new Map() };
+  ex.search.forEach(s => { const t = String(s.n).padStart(2, '0'); e.search.push({ solid: get(`s_${t}`), add: s.add ? get(`add_${t}`) : null, rem: s.rem ? get(`rem_${t}`) : null }); });
+  // normalise on the input mesh: centred, largest side = 2, resting on the floor
+  e.target.computeBoundingBox();
+  const bb = e.target.boundingBox, size = new THREE.Vector3(), c = new THREE.Vector3();
   bb.getSize(size); bb.getCenter(c);
-  const s = 2 / Math.max(size.x, size.y, size.z);
-  const m = new THREE.Matrix4().makeScale(s, s, s).multiply(new THREE.Matrix4().makeTranslation(-c.x, -bb.min.y, -c.z));
-  [target, ...steps, best].forEach(g => { g.applyMatrix4(m); g.computeBoundingSphere(); });
-  const entry = { target, steps, best, edges: new Map(), height: size.y * s };
-  cache.set(ex.key, entry);
-  return entry;
+  const sc = 2 / Math.max(size.x, size.y, size.z);
+  const M = new THREE.Matrix4().makeScale(sc, sc, sc).multiply(new THREE.Matrix4().makeTranslation(-c.x, -bb.min.y, -c.z));
+  const all = [e.target, ...e.policy, ...e.search.flatMap(s => [s.solid, s.add, s.rem])].filter(Boolean);
+  all.forEach(g => { g.applyMatrix4(M); g.computeBoundingSphere(); });
+  e.height = size.y * sc;
+  cache.set(ex.key, e);
+  return e;
 }
+const edgesOf = (e, id, g) => { if (!e.edges.has(id)) e.edges.set(id, new THREE.EdgesGeometry(g, 24)); return e.edges.get(id); };
 
-function edgesFor(entry, id, geom) {
-  if (!entry.edges.has(id)) entry.edges.set(id, new THREE.EdgesGeometry(geom, 24));
-  return entry.edges.get(id);
-}
-
-function frame(entry) {
-  const r = entry.target.boundingSphere.radius;
-  const tgt = new THREE.Vector3(0, entry.height / 2, 0);
+function frame(e) {
+  const r = e.target.boundingSphere.radius, tgt = new THREE.Vector3(0, e.height / 2, 0);
   controls.target.copy(tgt);
-  const dir = camera.position.clone().sub(controls.target).normalize();
+  const dir = camera.position.clone().sub(tgt).normalize();
   if (dir.y < 0.25) dir.set(0.62, 0.55, 0.72).normalize();
-  camera.position.copy(tgt).addScaledVector(dir, (r / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2))) * (camera.aspect < 1 ? 1.45 / camera.aspect ** 0.5 : 1.2));
+  const fit = r / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2));
+  camera.position.copy(tgt).addScaledVector(dir, fit * (camera.aspect < 1 ? 1.4 / Math.sqrt(camera.aspect) : 1.18));
   controls.update();
 }
 
-/* ---------- UI ---------- */
-const chips = $('#exChips'), tl = $('#timeline'), code = $('#code'), spark = $('#spark');
-const iouVal = $('#iouVal'), iouBar = $('#iouBar'), stagePill = $('#stagePill'), opPill = $('#opPill'), codeTitle = $('#codeTitle');
-const playBtn = $('#playBtn');
+/* ---------- UI refs ---------- */
+const chips = $('#exChips'), laneP = $('#lanePolicy'), laneS = $('#laneSearch'), chart = $('#chart'), code = $('#code');
+const stageTag = $('#stageTag'), opTag = $('#opTag'), iouVal = $('#iouVal'), iouBar = $('#iouBar'), codeTitle = $('#codeTitle');
+const legend = $('#legend3d'), playBtn = $('#playBtn'), loadingEl = $('#viewLoading');
+laneP.classList.add('p'); laneS.classList.add('s');
 
 const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-function hl(src) {
-  return esc(src)
-    .replace(/(#.*)$/gm, '<span class="c">$1</span>')
-    .replace(/\b(import|as|for|in|def|return|lambda)\b/g, '<span class="k">$1</span>')
-    .replace(/\.([a-zA-Z_]+)\(/g, '.<span class="f">$1</span>(')
-    .replace(/^([a-z_][a-z_0-9]*) =/gm, '<span class="v">$1</span> =')
-    .replace(/(-?\b\d+\.?\d*)/g, '<span class="n">$1</span>');
-}
-function blocksOf(src) {
-  const out = []; let buf = [];
-  src.split('\n').forEach(l => { if (/^(#!|import )/.test(l)) return; buf.push(l); if (l.startsWith('result = ')) { out.push(buf.join('\n')); buf = []; } });
-  if (buf.join('').trim()) out.push(buf.join('\n'));
-  return out;
-}
+const hl = s => esc(s)
+  .replace(/\.([a-zA-Z_]+)\(/g, '.<span class="f">$1</span>(')
+  .replace(/^([a-z_][a-z_0-9]*) =/gm, '<span class="v">$1</span> =')
+  .replace(/(-?\b\d+\.\d+|\b\d+\b)(?![^<]*>)/g, '<span class="n">$1</span>');
 
 let iouShown = 0;
-function animateIoU(to) {
-  const from = iouShown, t0 = performance.now(), dur = reduced ? 1 : 600;
-  const tick = t => { const p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3);
-    iouShown = from + (to - from) * e; iouVal.textContent = iouShown.toFixed(3); if (p < 1) requestAnimationFrame(tick); };
+function showIoU(v, s2) {
+  const from = iouShown, t0 = performance.now(), dur = reduced ? 1 : 550;
+  const tick = t => { const p = Math.min(1, (t - t0) / dur), k = 1 - Math.pow(1 - p, 3);
+    iouShown = from + (v - from) * k; iouVal.textContent = iouShown.toFixed(3); if (p < 1) requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
-  iouBar.style.width = (to * 100).toFixed(1) + '%';
+  iouBar.style.width = (v * 100).toFixed(1) + '%';
+  iouBar.classList.toggle('s2', s2);
 }
 
-function buildTimeline(ex) {
-  tl.innerHTML = '';
-  ex.steps.forEach((s, k) => {
-    const li = document.createElement('li');
-    li.innerHTML = `<button data-k="${k}" title="Step ${k + 1}: ${s.op} · IoU ${s.iou.toFixed(3)}"><b>${String(k + 1).padStart(2, '0')}</b>${s.op}</button>`;
-    tl.appendChild(li);
+function buildLanes(ex) {
+  laneP.innerHTML = ex.policy.map((p, k) => `<li><button data-i="${k}" title="Policy step ${k + 1}: ${p.op} · IoU ${p.iou.toFixed(3)}">${k + 1}</button></li>`).join('');
+  laneS.innerHTML = ex.search.map((s, n) => `<li><button data-i="${ex.policy.length + n}" title="Search edit ${n + 1}: ${KIND[s.kind] || s.kind} · IoU ${s.iou.toFixed(3)}">${n + 1}</button></li>`).join('');
+}
+
+function drawChart(ex, i) {
+  const P = ex.policy.map(p => p.iou), Sx = ex.search.map(s => s.iou), all = [...P, ...Sx], n = all.length;
+  const W = 320, H = 90, padL = 26, padR = 8, padT = 10, padB = 16;
+  const lo = Math.max(0, Math.floor((Math.min(...all) - 0.05) * 10) / 10), hi = 1;
+  const x = k => padL + (k / Math.max(1, n - 1)) * (W - padL - padR);
+  const y = v => padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB);
+  const pts = arr => arr.map(([k, v]) => `${x(k).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const pIdx = P.map((v, k) => [k, v]), sIdx = [[P.length - 1, P[P.length - 1]], ...Sx.map((v, k) => [P.length + k, v])];
+  const xd = (x(P.length - 1) + x(P.length)) / 2;
+  let s = '';
+  [lo, (lo + hi) / 2, hi].forEach(t => { s += `<line x1="${padL}" x2="${W - padR}" y1="${y(t)}" y2="${y(t)}" stroke="#e6e6e6"/><text x="${padL - 4}" y="${y(t) + 3}" text-anchor="end" font-size="8" fill="#9a9a9a">${t.toFixed(1)}</text>`; });
+  s += `<line x1="${xd}" x2="${xd}" y1="${padT - 4}" y2="${H - padB + 2}" stroke="#cfd6df" stroke-dasharray="3 3"/>`;
+  s += `<text x="${(padL + xd) / 2}" y="${H - 3}" text-anchor="middle" font-size="8.5" font-weight="700" fill="#3b7ddd">Policy</text>`;
+  s += `<text x="${(xd + W - padR) / 2}" y="${H - 3}" text-anchor="middle" font-size="8.5" font-weight="700" fill="#0f9f86">Search</text>`;
+  s += `<polyline points="${pts(pIdx)}" fill="none" stroke="#3b7ddd" stroke-width="2" stroke-linejoin="round"/>`;
+  s += `<polyline points="${pts(sIdx)}" fill="none" stroke="#0f9f86" stroke-width="2" stroke-linejoin="round"/>`;
+  all.forEach((v, k) => {
+    const on = k === i, c = k < P.length ? '#3b7ddd' : '#0f9f86';
+    s += `<circle cx="${x(k)}" cy="${y(v)}" r="${on ? 4.5 : 2.6}" fill="${on ? '#fff' : c}" stroke="${c}" stroke-width="${on ? 2.5 : 0}" opacity="${k <= i || on ? 1 : .35}"/>`;
   });
-  const li = document.createElement('li'); li.className = 'search';
-  li.innerHTML = `<button data-k="${ex.steps.length}" title="After geometry-guided search · IoU ${ex.best.iou.toFixed(3)}"><b>II</b>search</button>`;
-  tl.appendChild(li);
+  s += `<text x="${x(i)}" y="${y(all[i]) - 8}" text-anchor="middle" font-size="9" font-weight="700" fill="#363636">${all[i].toFixed(3)}</text>`;
+  chart.innerHTML = s;
 }
 
-function drawSpark(ex, k) {
-  const vals = [...ex.steps.map(s => s.iou), ex.best.iou];
-  const W = 300, H = 54, n = vals.length, px = i => 6 + (i / Math.max(1, n - 1)) * (W - 12), py = v => H - 6 - v * (H - 14);
-  const pts = vals.map((v, i) => `${px(i).toFixed(1)},${py(v).toFixed(1)}`);
-  const lastPolicy = n - 2;
-  let s = `<defs><linearGradient id="sg" x1="0" x2="1"><stop offset="0" stop-color="#5aa2ff"/><stop offset="1" stop-color="#2fd1b2"/></linearGradient></defs>`;
-  s += `<line x1="6" x2="${W - 6}" y1="${py(1)}" y2="${py(1)}" stroke="#2a3752" stroke-dasharray="3 4"/>`;
-  s += `<text x="${W - 6}" y="${py(1) - 3}" text-anchor="end" font-size="9" fill="#56657f" font-family="Exo">IoU 1.0</text>`;
-  s += `<polyline points="${pts.slice(0, n - 1).join(' ')}" fill="none" stroke="#5aa2ff" stroke-width="2" stroke-linejoin="round"/>`;
-  s += `<line x1="${px(lastPolicy)}" y1="${py(vals[lastPolicy])}" x2="${px(n - 1)}" y2="${py(vals[n - 1])}" stroke="#2fd1b2" stroke-width="2" stroke-dasharray="4 3"/>`;
-  vals.forEach((v, i) => {
-    const on = i === k, last = i === n - 1;
-    s += `<circle cx="${px(i)}" cy="${py(v)}" r="${on ? 5 : 3}" fill="${last ? '#2fd1b2' : '#5aa2ff'}" ${on ? 'stroke="#fff" stroke-width="2"' : 'opacity="' + (i <= k ? 1 : .45) + '"'}/>`;
-  });
-  spark.innerHTML = s;
+function diffHTML(a, b) {
+  const A = a ? a.split('\n') : [], B = b ? b.split('\n') : [];
+  const setA = new Set(A), setB = new Set(B);
+  const out = [];
+  A.forEach(l => out.push(setB.has(l) ? `<span class="ctx">  ${hl(l)}</span>` : `<span class="del">- ${hl(l)}</span>`));
+  B.forEach(l => { if (!setA.has(l)) out.push(`<span class="ins">+ ${hl(l)}</span>`); });
+  return out.join('');
 }
 
-function renderCode(ex, k) {
-  const final = k === ex.steps.length;
-  const blocks = final ? blocksOf(ex.best.code) : ex.steps.map(s => s.code);
-  code.classList.toggle('final', final);
-  code.innerHTML = blocks.map((b, i) => `<span class="blk${(!final && i === k) || (final && i === blocks.length - 1) ? ' cur' : ''}${!final && i > k ? ' future' : ''}">${hl(b)}</span>`).join('\n');
-  code.querySelectorAll('.future').forEach(n => n.style.opacity = '.14');
-  codeTitle.textContent = final ? `Refined program · ${blocks.length} ops` : `Policy program · step ${k + 1} of ${ex.steps.length}`;
-  const curEl = code.querySelector('.cur');
-  if (curEl) code.scrollTo({ top: Math.max(0, curEl.offsetTop - code.clientHeight / 3), behavior: reduced ? 'auto' : 'smooth' });
+function renderCode(ex, i) {
+  const P = ex.policy.length;
+  if (i < P) {
+    code.innerHTML = ex.policy.map((p, k) => `<span class="blk${k === i ? ' cur' : k > i ? ' future' : ''}">${hl(p.code)}</span>`).join('\n');
+    codeTitle.textContent = `Policy program · step ${i + 1} of ${P}`;
+  } else {
+    const s = ex.search[i - P];
+    const where = `operation ${s.pos + 1}${s.op ? ` (${s.op})` : ''}`;
+    const what = { sketch: 'sketch replaced with the profile sliced from the input mesh', ccut: 'new cut-extrude removes overshoot',
+      refine: 'continuous parameters re-optimised', skip: 'operation dropped from the program', replace: 'operation swapped for a better-fitting one', add: 'operation added' }[s.kind] || '';
+    code.innerHTML = `<span class="hdr"># ${KIND[s.kind] || s.kind} at ${where}: ${what}</span>` + diffHTML(s.gen, s.best);
+    codeTitle.textContent = `Search edit ${i - P + 1} of ${ex.search.length} · diff`;
+  }
+  const c = code.querySelector('.cur, .del, .ins');
+  if (c) code.scrollTo({ top: Math.max(0, c.offsetTop - code.clientHeight / 3), behavior: reduced ? 'auto' : 'smooth' });
+  else code.scrollTop = 0;
 }
 
-function setMesh(geom, edges, color) {
-  if (!solid) {
-    solid = new THREE.Mesh(geom, solidMat); solid.castShadow = true; solid.receiveShadow = true;
-    solidEdges = new THREE.LineSegments(edges, edgeMat);
-    stage.add(solid, solidEdges);
-  } else { solid.geometry = geom; solidEdges.geometry = edges; }
-  solidMat.color.copy(color);
-  flash = 0.35;
-}
-
-async function showStep(k) {
-  const ex = examples[cur], entry = await loadExample(ex);
+async function show(i) {
+  const ex = examples[cur], e = await load(ex);
   if (ex !== examples[cur]) return;
-  step = k;
-  const final = k === ex.steps.length;
-  const geom = final ? entry.best : entry.steps[k];
-  setMesh(geom, edgesFor(entry, final ? 'best' : k, geom), final ? COL_FINAL : COL_POLICY);
-  tl.querySelectorAll('button').forEach((b, i) => { b.classList.toggle('cur', i === k); b.classList.toggle('done', i < k); });
-  const curBtn = tl.querySelector('button.cur');
-  if (curBtn) tl.scrollTo({ left: curBtn.parentElement.offsetLeft - tl.clientWidth / 2 + curBtn.clientWidth / 2, behavior: reduced ? 'auto' : 'smooth' });
-  stagePill.textContent = final ? 'Stage II · after search' : `Stage I · policy step ${k + 1}`;
-  stagePill.classList.toggle('s2', final);
-  opPill.textContent = final ? `${ex.best.nops} ops` : ex.steps[k].op;
-  animateIoU(final ? ex.best.iou : ex.steps[k].iou);
-  drawSpark(ex, k);
-  renderCode(ex, k);
+  idx = i;
+  const P = ex.policy.length, s2 = i >= P;
+  let g;
+  if (!s2) {
+    g = e.policy[i];
+    addMesh.visible = remMesh.visible = remEdges.visible = false;
+  } else {
+    const s = e.search[i - P];
+    g = s.solid;
+    addMesh.geometry = s.add || new THREE.BufferGeometry(); addMesh.visible = !!s.add;
+    remMesh.geometry = s.rem || new THREE.BufferGeometry(); remMesh.visible = !!s.rem;
+    if (s.rem) { remEdges.geometry = edgesOf(e, `rem${i}`, s.rem); remEdges.visible = true; } else remEdges.visible = false;
+    pulse = 1;
+  }
+  solid.geometry = g; solidEdges.geometry = edgesOf(e, `g${i}`, g);
+  solid.visible = true; solidEdges.visible = tgEdges.checked;
+  solidMat.color.copy(s2 ? COL.search : COL.policy);
+  flash = 0.3;
+
+  laneP.querySelectorAll('button').forEach((b, k) => { b.classList.toggle('cur', k === i); b.classList.toggle('done', k < i); });
+  laneS.querySelectorAll('button').forEach((b, k) => { b.classList.toggle('cur', P + k === i); b.classList.toggle('done', P + k < i); });
+  stageTag.textContent = s2 ? `Stage II · search edit ${i - P + 1}/${ex.search.length}` : `Stage I · policy step ${i + 1}/${P}`;
+  stageTag.classList.toggle('s2', s2);
+  opTag.textContent = s2 ? (KIND[ex.search[i - P].kind] || ex.search[i - P].kind) : ex.policy[i].op;
+  legend.classList.toggle('s2', s2);
+  showIoU(s2 ? ex.search[i - P].iou : ex.policy[i].iou, s2);
+  drawChart(ex, i);
+  renderCode(ex, i);
 }
 
-async function selectExample(i, keepCamera = false) {
+async function select(i, keepCam = false) {
   cur = i;
-  chips.querySelectorAll('button').forEach((b, j) => b.setAttribute('aria-selected', j === i));
+  chips.querySelectorAll('button').forEach((b, k) => b.setAttribute('aria-selected', k === i));
   const ex = examples[i];
-  buildTimeline(ex);
+  buildLanes(ex);
   loadingEl.classList.remove('done');
-  const entry = await loadExample(ex);
+  const e = await load(ex);
   if (ex !== examples[cur]) return;
   loadingEl.classList.add('done');
-  if (!ghost) {
-    ghost = new THREE.Mesh(entry.target, ghostMat); ghost.renderOrder = 2;
-    ghostEdges = new THREE.LineSegments(edgesFor(entry, 'target', entry.target), ghostEdgeMat); ghostEdges.renderOrder = 3;
-    stage.add(ghost, ghostEdges);
-  } else { ghost.geometry = entry.target; ghostEdges.geometry = edgesFor(entry, 'target', entry.target); }
-  applyToggles();
-  if (!keepCamera) frame(entry);
-  await showStep(0);
+  ghost.geometry = e.target;
+  ghostEdges.geometry = edgesOf(e, 'target', e.target);
+  ghostEdges.computeLineDistances();
+  ghost.visible = ghostEdges.visible = tgGhost.checked;
+  if (!keepCam) frame(e);
+  await show(0);
   schedule();
-  // warm the next example in the background
-  const nx = examples[(i + 1) % examples.length]; if (nx) loadExample(nx).catch(() => {});
+  const nx = examples[(i + 1) % examples.length]; if (nx) load(nx).catch(() => {});
 }
 
 /* ---------- playback ---------- */
 function schedule() {
-  clearTimeout(playTimer);
-  playBtn.classList.toggle('on', playing);
+  clearTimeout(timer);
+  playBtn.classList.toggle('paused', !playing);
   playBtn.setAttribute('aria-label', playing ? 'Pause' : 'Play');
   if (!playing || !visible) return;
-  const ex = examples[cur], last = ex.steps.length;
-  const delay = step === last ? 3200 : step === last - 1 ? 1500 : 1000;
-  playTimer = setTimeout(() => {
-    if (step < last) showStep(step + 1).then(schedule);
-    else if (!userTouched) selectExample((cur + 1) % examples.length, true);
-    else showStep(0).then(schedule);
+  const ex = examples[cur], P = ex.policy.length, last = P + ex.search.length - 1;
+  const delay = idx === last ? 3200 : idx === P - 1 ? 1900 : idx >= P ? 2000 : 1100;
+  timer = setTimeout(() => {
+    if (idx < last) show(idx + 1).then(schedule);
+    else if (!userTouched) select((cur + 1) % examples.length, true);
+    else show(0).then(schedule);
   }, delay);
 }
-playBtn.addEventListener('click', () => { playing = !playing; if (playing && step === examples[cur].steps.length) showStep(0); schedule(); });
-tl.addEventListener('click', e => {
+playBtn.addEventListener('click', () => { playing = !playing; schedule(); });
+function onLane(e) {
   const b = e.target.closest('button'); if (!b) return;
-  userTouched = true; playing = false; showStep(+b.dataset.k); schedule();
-});
-tl.addEventListener('keydown', e => {
-  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-  const n = examples[cur].steps.length, k = Math.max(0, Math.min(n, step + (e.key === 'ArrowRight' ? 1 : -1)));
-  userTouched = true; playing = false; showStep(k).then(() => tl.querySelector('button.cur')?.focus()); schedule(); e.preventDefault();
+  userTouched = true; playing = false; show(+b.dataset.i); schedule();
+}
+laneP.addEventListener('click', onLane); laneS.addEventListener('click', onLane);
+document.querySelector('.studio-side').addEventListener('keydown', e => {
+  if (!e.target.closest('.steps') || (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft')) return;
+  const ex = examples[cur], n = ex.policy.length + ex.search.length;
+  const k = Math.max(0, Math.min(n - 1, idx + (e.key === 'ArrowRight' ? 1 : -1)));
+  userTouched = true; playing = false; schedule();
+  show(k).then(() => document.querySelector(`.steps button[data-i="${k}"]`)?.focus());
+  e.preventDefault();
 });
 
 /* ---------- toggles ---------- */
 const tgGhost = $('#tgGhost'), tgEdges = $('#tgEdges'), tgSpin = $('#tgSpin');
+tgSpin.checked = !reduced;
 function applyToggles() {
-  if (ghost) { ghost.visible = tgGhost.checked; ghostEdges.visible = tgGhost.checked; }
-  if (solidEdges) solidEdges.visible = tgEdges.checked;
+  ghost.visible = ghostEdges.visible = tgGhost.checked && !!ghost.geometry;
+  solidEdges.visible = tgEdges.checked && solid.visible;
   controls.autoRotate = tgSpin.checked;
 }
-tgSpin.checked = !reduced;
 [tgGhost, tgEdges, tgSpin].forEach(t => t.addEventListener('change', applyToggles));
 controls.addEventListener('start', () => { userTouched = true; });
 
-/* ---------- sizing / loop ---------- */
+/* ---------- loop ---------- */
 function resize() {
   const r = canvas.parentElement.getBoundingClientRect();
   renderer.setSize(r.width, r.height, false);
@@ -286,30 +296,34 @@ function resize() {
 new ResizeObserver(resize).observe(canvas.parentElement);
 resize();
 
+const clock = new THREE.Clock();
+function loop() {
+  const t = clock.getElapsedTime();
+  controls.update();
+  if (flash > 0) { flash = Math.max(0, flash - 0.02); solidMat.emissiveIntensity = flash * 0.4; }
+  if (addMesh.visible) addMat.emissiveIntensity = 0.25 + 0.3 * (0.5 + 0.5 * Math.sin(t * 5)) + pulse * 0.6;
+  if (remMesh.visible) remMat.opacity = 0.3 + 0.15 * (0.5 + 0.5 * Math.sin(t * 5)) + pulse * 0.3;
+  pulse = Math.max(0, pulse - 0.015);
+  renderer.render(scene, camera);
+}
 new IntersectionObserver(es => es.forEach(e => {
   const was = visible; visible = e.isIntersecting;
   if (visible && !was) { renderer.setAnimationLoop(loop); schedule(); }
-  if (!visible) { renderer.setAnimationLoop(null); clearTimeout(playTimer); }
+  if (!visible) { renderer.setAnimationLoop(null); clearTimeout(timer); }
 }), { threshold: 0.05 }).observe(canvas);
-
-function loop() {
-  controls.update();
-  if (flash > 0) { flash = Math.max(0, flash - 0.02); solidMat.emissiveIntensity = flash * 0.5; }
-  renderer.render(scene, camera);
-}
 renderer.setAnimationLoop(loop);
 
 /* ---------- boot ---------- */
-fetch('static/models/examples.json').then(r => r.json()).then(data => {
+fetch('./static/models/examples.json').then(r => r.json()).then(data => {
   examples = data;
   data.forEach((ex, i) => {
     const b = document.createElement('button');
     b.textContent = ex.name; b.setAttribute('role', 'tab');
-    b.addEventListener('click', () => { userTouched = true; selectExample(i); });
+    b.addEventListener('click', () => { userTouched = true; select(i); });
     chips.appendChild(b);
   });
-  selectExample(0);
+  select(0);
 }).catch(err => {
-  loadingEl.innerHTML = 'Could not load the 3D viewer. Serve this page over HTTP, not file://.';
+  loadingEl.textContent = 'Could not load the 3D replay. Serve this page over HTTP (not file://).';
   console.error(err);
 });
