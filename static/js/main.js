@@ -6,13 +6,13 @@
   const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  /* ---------- project menu (mobile) ---------- */
-  const pb = $('#projBtn'), pm = $('#projMenu');
-  pb.addEventListener('click', () => {
-    const open = pb.getAttribute('aria-expanded') !== 'true';
-    pb.setAttribute('aria-expanded', open); pm.hidden = !open;
-  });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !pm.hidden) { pm.hidden = true; pb.setAttribute('aria-expanded', 'false'); } });
+  /* ---------- "More Works" dropdown ---------- */
+  const mw = $('#moreWorks'), mwBtn = $('#moreWorksBtn'), mwMenu = $('#moreWorksMenu');
+  const setMW = open => { mwMenu.classList.toggle('show', open); mwBtn.setAttribute('aria-expanded', open); };
+  mwBtn.addEventListener('click', () => setMW(!mwMenu.classList.contains('show')));
+  $('#moreWorksClose').addEventListener('click', () => { setMW(false); mwBtn.focus(); });
+  document.addEventListener('click', e => { if (!mw.contains(e.target)) setMW(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && mwMenu.classList.contains('show')) { setMW(false); mwBtn.focus(); } });
 
   /* ---------- reveal on scroll ---------- */
   const onView = (node, fn, threshold = 0.25) => {

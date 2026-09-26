@@ -30,33 +30,47 @@
 </head>
 <body>
 
-<!-- ============ PROJECT BAR ============ -->
-<header class="topbar" id="top">
-  <div class="topbar-in">
-    <a class="brand" href="https://ghadinehme.com/" title="Ghadi Nehme · homepage">
-      <span class="brand-mark">GN</span><span class="brand-txt">Ghadi Nehme <em>· Research</em></span>
-    </a>
-    <nav class="proj-nav" aria-label="Research projects">
-      <a href="https://ghadinehme.com/videocad.github.io/" style="--c:var(--c-videocad)"><i></i>VideoCAD</a>
-      <a href="https://ghadinehme.com/cadfit.github.io/" style="--c:var(--c-cadfit)"><i></i>CADFit</a>
-      <a href="./" class="on" aria-current="page" style="--c:var(--accent)"><i></i>StepCAD</a>
-      <a href="https://ghadinehme.com/lamp.github.io/" style="--c:var(--c-lamp)"><i></i>LAMP</a>
-    </nav>
-    <button class="proj-btn" id="projBtn" aria-expanded="false" aria-controls="projMenu">
-      Projects <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
-    </button>
+<!-- ============ MORE WORKS DROPDOWN ============ -->
+<div class="more-works" id="moreWorks">
+  <button class="more-works-btn" id="moreWorksBtn" aria-expanded="false" aria-controls="moreWorksMenu">
+    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6l-5.5 9.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3"/><path d="M7.5 15h9"/></svg>
+    More Works
+    <svg class="arrow" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg>
+  </button>
+  <div class="more-works-menu" id="moreWorksMenu" role="dialog" aria-label="More works">
+    <div class="mw-head">
+      <h4>More CAD-related work from DeCoDE Lab</h4>
+      <button class="mw-close" id="moreWorksClose" aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="mw-list">
+      <a class="mw-item" href="https://ghadinehme.com/videocad.github.io/">
+        <span class="mw-info"><b>VideoCAD: A Dataset and Model for Learning Long-Horizon 3D CAD UI Interactions from Video</b><small>NeurIPS 2025</small></span>
+        <svg class="ext" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+      </a>
+      <a class="mw-item" href="https://ghadinehme.com/cadfit.github.io/">
+        <span class="mw-info"><b>CADFit: Precise Mesh-to-CAD Program Generation with Hybrid Optimization</b><small>ICML 2026</small></span>
+        <svg class="ext" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+      </a>
+      <a class="mw-item" href="https://ghadinehme.com/lamp.github.io/">
+        <span class="mw-info"><b>LAMP: Data-Efficient Linear Affine Weight-Space Models for Parameter-Controlled 3D Shape Generation and Extrapolation</b><small>ICML 2026</small></span>
+        <svg class="ext" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+      </a>
+      <a class="mw-item" href="https://anniedoris.github.io/CADBench/">
+        <span class="mw-info"><b>CADBench: A Multimodal Benchmark for AI-Assisted CAD Program Generation</b><small>Benchmark · 2026</small></span>
+        <svg class="ext" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+      </a>
+      <a class="mw-item home" href="https://ghadinehme.com/">
+        <span class="mw-info"><b>All publications</b><small>ghadinehme.com</small></span>
+        <svg class="ext" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+      </a>
+    </div>
   </div>
-  <div class="proj-menu" id="projMenu" hidden>
-    <a href="https://ghadinehme.com/videocad.github.io/"><img src="static/img/projects/videocad.webp" alt=""><span><b>VideoCAD</b>NeurIPS 2025</span></a>
-    <a href="https://ghadinehme.com/cadfit.github.io/"><img src="static/img/projects/cadfit.webp" alt=""><span><b>CADFit</b>ICML 2026</span></a>
-    <a href="./" class="on"><img src="static/img/projects/stepcad.webp" alt=""><span><b>StepCAD</b>NeurIPS 2026 · you are here</span></a>
-    <a href="https://ghadinehme.com/lamp.github.io/"><img src="static/img/projects/lamp.webp" alt=""><span><b>LAMP</b>ICML 2026</span></a>
-    <a href="https://ghadinehme.com/" class="home"><span><b>All research →</b>ghadinehme.com</span></a>
-  </div>
-</header>
+</div>
 
 <!-- ============ HERO ============ -->
-<section class="hero">
+<section class="hero" id="top">
   <div class="hero-grid" aria-hidden="true"></div>
   <div class="wrap hero-in">
     <span class="venue"><span class="dot"></span>NeurIPS 2026</span>
