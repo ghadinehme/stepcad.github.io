@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StepCAD: Mesh-to-CAD Code Generation via LLM Policy and Geometry-Guided Search</title>
+  <meta name="description" content="StepCAD (NeurIPS 2026): a state-conditioned LLM policy writes CadQuery programs step by step from a mesh, then an IoU-guided tree search refines them. Trained on ARCADE-1.5M, 1.5M executable CAD programs.">
+  <meta name="keywords" content="StepCAD, ARCADE-1.5M, mesh-to-CAD, CadQuery, CAD program synthesis, NeurIPS 2026, reverse engineering, tree search, LLM">
+  <meta name="author" content="Ghadi Nehme">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="StepCAD · NeurIPS 2026">
+  <meta property="og:description" content="Mesh-to-CAD code generation with an LLM policy and geometry-guided search. Up to 87.2% relative IoU gain over the best prior method.">
+  <meta property="og:image" content="https://ghadinehme.com/stepcad.github.io/static/video/stepcad_poster.jpg">
+  <meta property="og:url" content="https://ghadinehme.com/stepcad.github.io/">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#0b1220">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Exo:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="static/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f9f86'/%3E%3Cpath d='M9 21l7 4 7-4V11l-7-4-7 4z' fill='none' stroke='white' stroke-width='2.2' stroke-linejoin='round'/%3E%3Cpath d='M9 11l7 4 7-4M16 15v10' fill='none' stroke='white' stroke-width='2.2' stroke-linejoin='round'/%3E%3C/svg%3E">
+
+  <script type="importmap">
+  { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  } }
+  </script>
+</head>
+<body>
+
+<!-- ============ PROJECT BAR ============ -->
+<header class="topbar" id="top">
+  <div class="topbar-in">
+    <a class="brand" href="https://ghadinehme.com/" title="Ghadi Nehme · homepage">
+      <span class="brand-mark">GN</span><span class="brand-txt">Ghadi Nehme <em>· Research</em></span>
+    </a>
+    <nav class="proj-nav" aria-label="Research projects">
+      <a href="https://ghadinehme.com/videocad.github.io/" style="--c:var(--c-videocad)"><i></i>VideoCAD</a>
+      <a href="https://ghadinehme.com/cadfit.github.io/" style="--c:var(--c-cadfit)"><i></i>CADFit</a>
+      <a href="./" class="on" aria-current="page" style="--c:var(--accent)"><i></i>StepCAD</a>
+      <a href="https://ghadinehme.com/lamp.github.io/" style="--c:var(--c-lamp)"><i></i>LAMP</a>
+    </nav>
+    <button class="proj-btn" id="projBtn" aria-expanded="false" aria-controls="projMenu">
+      Projects <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+    </button>
+  </div>
+  <div class="proj-menu" id="projMenu" hidden>
+    <a href="https://ghadinehme.com/videocad.github.io/"><img src="static/img/projects/videocad.webp" alt=""><span><b>VideoCAD</b>NeurIPS 2025</span></a>
+    <a href="https://ghadinehme.com/cadfit.github.io/"><img src="static/img/projects/cadfit.webp" alt=""><span><b>CADFit</b>ICML 2026</span></a>
+    <a href="./" class="on"><img src="static/img/projects/stepcad.webp" alt=""><span><b>StepCAD</b>NeurIPS 2026 · you are here</span></a>
+    <a href="https://ghadinehme.com/lamp.github.io/"><img src="static/img/projects/lamp.webp" alt=""><span><b>LAMP</b>ICML 2026</span></a>
+    <a href="https://ghadinehme.com/" class="home"><span><b>All research →</b>ghadinehme.com</span></a>
+  </div>
+</header>
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="hero-grid" aria-hidden="true"></div>
+  <div class="wrap hero-in">
+    <span class="venue"><span class="dot"></span>NeurIPS 2026</span>
+    <h1><span class="logo">StepCAD</span><span class="sub">Mesh-to-CAD Code Generation via LLM&nbsp;Policy and Geometry&#8209;Guided&nbsp;Search</span></h1>
+    <p class="authors">
+      <a href="https://ghadinehme.com/" target="_blank" rel="noopener">Ghadi Nehme</a>
+      <span class="sep">·</span>
+      <a href="https://decode.mit.edu/" target="_blank" rel="noopener">Faez Ahmed</a>
+    </p>
+    <p class="affil">Massachusetts Institute of Technology · DeCoDE Lab</p>
+    <div class="cta">
+      <a class="btn primary" href="https://ghadinehme.com/assets/papers/stepcad_neurips2026.pdf" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>Paper</a>
+      <span class="btn soon" title="Code release coming soon">
+        <svg viewBox="0 0 24 24"><path d="M9 18l-6-6 6-6M15 6l6 6-6 6"/></svg>Code <small>soon</small></span>
+      <span class="btn soon" title="Dataset release coming soon">
+        <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>ARCADE-1.5M <small>soon</small></span>
+      <a class="btn" href="#bibtex">
+        <svg viewBox="0 0 24 24"><path d="M6 4h9l3 3v13H6z"/><path d="M9 10h6M9 14h6"/></svg>BibTeX</a>
+    </div>
+  </div>
+
+  <!-- Interactive studio -->
+  <div class="wrap studio-wrap" id="demo">
+    <div class="studio">
+      <div class="studio-view">
+        <canvas id="viewer" aria-label="Interactive 3D view of a StepCAD reconstruction"></canvas>
+        <div class="view-hud tl">
+          <span class="stage-pill" id="stagePill">Stage I · Policy</span>
+          <span class="op-pill" id="opPill">extrude</span>
+        </div>
+        <div class="view-hud tr">
+          <div class="iou-card">
+            <span>IoU vs. input</span>
+            <b id="iouVal">0.00</b>
+            <div class="iou-bar"><i id="iouBar"></i></div>
+          </div>
+        </div>
+        <div class="view-hud bl toggles">
+          <label><input type="checkbox" id="tgGhost" checked><span>Target ghost</span></label>
+          <label><input type="checkbox" id="tgEdges" checked><span>Edges</span></label>
+          <label><input type="checkbox" id="tgSpin" checked><span>Auto-rotate</span></label>
+        </div>
+        <div class="view-hud br hint">Drag to orbit · scroll to zoom</div>
+        <div class="loading" id="viewLoading"><span></span>Loading geometry…</div>
+      </div>
+
+      <aside class="studio-side">
+        <div class="side-head">
+          <div class="side-title">Real StepCAD runs <span>on CADBench</span></div>
+          <div class="chips" id="exChips" role="tablist" aria-label="Examples"></div>
+        </div>
+        <div class="timeline-wrap">
+          <div class="tl-label"><span>Construction timeline</span>
+            <button class="play" id="playBtn" aria-label="Play">
+              <svg class="i-play" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"/></svg>
+              <svg class="i-pause" viewBox="0 0 24 24"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg>
+            </button>
+          </div>
+          <ol class="timeline" id="timeline"></ol>
+          <div class="spark" aria-hidden="true"><svg id="spark" viewBox="0 0 300 54" preserveAspectRatio="none"></svg></div>
+        </div>
+        <div class="code-head"><span id="codeTitle">CadQuery program</span><span class="dots"><i></i><i></i><i></i></span></div>
+        <pre class="code" id="code" aria-label="Generated CadQuery code"></pre>
+      </aside>
+    </div>
+    <p class="studio-cap">
+      Every shape above is a real StepCAD output, not an illustration. Each program was replayed one operation at a time in CadQuery,
+      and IoU was measured against the input mesh at every step. <b>Stage I</b> steps are the policy's own program;
+      the final <b>Stage II</b> node is the program after geometry-guided search.
+    </p>
+  </div>
+</section>
+
+<!-- ============ STATS ============ -->
+<section class="stats wrap" aria-label="Key results">
+  <div class="stat"><b data-count="87.2" data-suffix="%">87.2%</b><span>relative IoU gain on ABC&nbsp;Hard over the best prior method</span></div>
+  <div class="stat"><b data-count="1.5" data-suffix="M">1.5M</b><span>executable CAD programs in ARCADE-1.5M</span></div>
+  <div class="stat"><b data-count="12.5" data-suffix="M">12.5M</b><span>intermediate state–action transitions</span></div>
+  <div class="stat"><b data-count="150" data-suffix="+">150+</b><span>operations in the longest programs</span></div>
+  <div class="stat"><b data-count="100" data-suffix="%">100%</b><span>valid programs across every benchmark split</span></div>
+</section>
+
+<!-- ============ TL;DR ============ -->
+<section class="section wrap narrow reveal" id="abstract">
+  <h2 class="eyebrow">In one paragraph</h2>
+  <p class="lead">
+    Turning a 3D mesh back into an <em>editable CAD program</em> is hard. Programs are long, operations depend on each other,
+    and every depth and radius has to be exactly right. Prior methods predict the whole program in one shot from the target shape,
+    mostly with sketch-and-extrude. <b>StepCAD</b> instead writes the program <b>one operation at a time</b>, looking at both the target
+    and the part it has built so far. It then <b>searches in program space</b> for the local edits that raise IoU the most.
+    We train it on <b>ARCADE-1.5M</b>, a new dataset of long, diverse CadQuery programs with revolves, lofts, sweeps, shells and mirrors.
+  </p>
+  <details class="abstract">
+    <summary>Read the full abstract</summary>
+    <p>Recovering executable CAD programs from 3D meshes is fundamentally challenging due to the long-horizon, compositional nature of CAD construction and the need for precise estimation of both discrete operations and continuous parameters. Existing learning-based methods primarily treat mesh-to-CAD reconstruction as one-shot sequence prediction and are largely limited to simple sketch-extrude pipelines, restricting operation diversity and preventing the use of intermediate geometric feedback, with no mechanism for refining generated programs. To address this limitation, we introduce <b>StepCAD</b>, a generative optimization approach that performs step-by-step, geometry-conditioned program synthesis followed by explicit refinement in program space. Given an input mesh, StepCAD first predicts construction sequences using a state-conditioned CAD policy conditioned on both target and intermediate geometry, then refines them through IoU-guided tree search over local program edits. To address the limited operation diversity in prior work, we further introduce <b>ARCADE-1.5M</b>, a large-scale dataset of 1.5M executable CAD programs with diverse operations, long-horizon sequences up to 150+ operations, and 12.5M intermediate state-action transitions. Experiments on multiple CAD reconstruction benchmarks show that StepCAD achieves state-of-the-art reconstruction accuracy, validity, and robustness, with up to <b>87.2%</b> relative IoU improvement over the best prior method and increasingly larger gains as shape complexity increases.</p>
+  </details>
+</section>
+
+<!-- ============ METHOD ============ -->
+<section class="section band" id="method">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <h2 class="eyebrow">Method</h2>
+      <p class="h2">A learned policy proposes. Geometry decides.</p>
+    </div>
+
+    <div class="stages">
+      <article class="stage reveal">
+        <div class="stage-num">I</div>
+        <h3>Π-StepCAD: a policy that sees its own work</h3>
+        <p>A <b>Qwen2.5-Coder-1.5B</b> policy predicts the next CadQuery operation from three things: the <b>target</b> point cloud,
+          the <b>current intermediate geometry</b>, and the operations written so far. Both clouds are encoded with a shared Point-MAE
+          and injected as geometry tokens.</p>
+        <div class="loop" aria-label="Closed-loop inference">
+          <span>predict a<sub>t</sub></span><em>→</em><span>execute in CadQuery</span><em>→</em><span>sample S<sub>t</sub></span><em>↺</em>
+        </div>
+        <div class="formula">π<sub>θ</sub>(a<sub>t</sub> | Q<sub>t−1</sub>, Q<sub>m</sub>, a<sub>&lt;t</sub>)</div>
+      </article>
+      <article class="stage reveal">
+        <div class="stage-num">II</div>
+        <h3>Geometry-aware tree search</h3>
+        <p>Starting from the policy's program, a beam search (<b>K = 2</b>) walks the operations in execution order.
+          At each step it tries four local edits, runs every candidate, and keeps the ones with the best <b>IoU</b> against the input mesh.
+          Cost stays linear in program length.</p>
+        <div class="formula">p* = argmax<sub>p ∈ 𝒩(p̂)</sub> IoU(S(p), m)</div>
+      </article>
+    </div>
+
+    <div class="edits">
+      <div class="edit reveal"><span class="edit-ic">
+        <svg viewBox="0 0 24 24"><path d="M4 12h4l2-6 4 12 2-6h4"/></svg></span>
+        <h4>Continuous refinement</h4><p>Bayesian optimisation of depths, radii and sketch dimensions.</p></div>
+      <div class="edit reveal"><span class="edit-ic">
+        <svg viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/></svg></span>
+        <h4>Sketch modification</h4><p>Swap a sketch for the profile sliced from the input mesh at that plane.</p></div>
+      <div class="edit reveal"><span class="edit-ic">
+        <svg viewBox="0 0 24 24"><rect x="4" y="4" width="12" height="12" rx="1"/><path d="M10 10h10v10H10z" stroke-dasharray="2.5 2"/></svg></span>
+        <h4>Complement cut</h4><p>Remove overshoot with automatically generated cut-extrudes.</p></div>
+      <div class="edit reveal"><span class="edit-ic">
+        <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/><path d="M4 5l16 14" opacity=".55"/></svg></span>
+        <h4>Operation skipping</h4><p>Drop operations that are redundant or hurt the fit.</p></div>
+    </div>
+
+    <figure class="fig reveal">
+      <button class="zoomable" data-full="static/img/figs/main-method.webp" aria-label="Enlarge pipeline figure">
+        <img src="static/img/figs/main-method.webp" alt="StepCAD pipeline: a CAD policy conditioned on intermediate geometry, trained on ARCADE-1.5M state-action pairs, followed by geometry-aware tree search over four local edit operators." loading="lazy" width="1800" height="827">
+      </button>
+      <figcaption><b>Pipeline.</b> Stage I samples a program with the state-conditioned policy; Stage II refines it through IoU-guided search over local edits. Click to enlarge.</figcaption>
+    </figure>
+
+    <div class="video-row reveal">
+      <div class="video-card">
+        <video src="static/video/stepcad_walkthrough.mp4" poster="static/video/stepcad_poster.jpg" muted loop playsinline preload="none" controls></video>
+      </div>
+      <div class="video-txt">
+        <h3>Watch the search</h3>
+        <p>The policy's draft scores IoU 0.874. Search tries refining a height, editing a sketch and skipping operations,
+          keeps only the branches that improve the fit, and ends at <b>0.999</b>. The result is still a short, editable program.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ARCADE ============ -->
+<section class="section" id="arcade">
+  <div class="wrap sec-head reveal">
+    <h2 class="eyebrow">Dataset</h2>
+    <p class="h2">ARCADE-1.5M: CAD programs with more than extrudes</p>
+    <p class="sec-sub">1.5M executable CadQuery programs built by 94 workflow-inspired strategies from ABC sketch loops. Every intermediate
+      state must be a valid single solid, and every program is re-executed from scratch before export. Each sample ships with the script, a STEP
+      B-rep, a mesh, a 10K point cloud with normals, and the geometry after every solid operation.</p>
+  </div>
+
+  <div class="marquee" aria-label="Samples from ARCADE-1.5M">
+    <div class="marquee-row" id="mq1"></div>
+    <div class="marquee-row rev" id="mq2"></div>
+  </div>
+
+  <div class="wrap arcade-grid">
+    <div class="card chart-card reveal">
+      <div class="card-head">
+        <h3>Solid-operation coverage</h3>
+        <p>Share of programs containing each operation at least once.</p>
+      </div>
+      <div class="seg" id="dsSeg" role="tablist" aria-label="Compare with dataset"></div>
+      <div class="cov" id="covChart"></div>
+      <div class="legend"><span class="lg a">ARCADE-1.5M</span><span class="lg b" id="covCmpName">CADEvolve</span></div>
+    </div>
+    <div class="card reveal">
+      <div class="card-head"><h3>Longer, richer, more complex</h3><p>Per-program averages vs. the largest public datasets.</p></div>
+      <div class="dims" id="dims"></div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <figure class="fig reveal">
+      <button class="zoomable" data-full="static/img/figs/dataset-gen.webp" aria-label="Enlarge dataset figure">
+        <img src="static/img/figs/dataset-gen.webp" alt="ARCADE-1.5M generation pipeline: strategy-guided composition of sketch primitives and CAD operations with validation." loading="lazy" width="1800" height="1175">
+      </button>
+      <figcaption><b>How ARCADE is built.</b> Sketches are perturbed and placed on faces of a bounding box, turned into solids by extrude, revolve, loft or sweep, and composed under overlap and validity constraints.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============ RESULTS ============ -->
+<section class="section band" id="results">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <h2 class="eyebrow">Results on CADBench</h2>
+      <p class="h2">The harder the shape, the bigger the lead</p>
+      <p class="sec-sub">Seven splits spanning DeepCAD, Fusion 360, ABC (by face count), mechanical parts (MCB) and organic shapes (Objaverse).
+        Baselines use their public checkpoints.</p>
+    </div>
+
+    <div class="results-grid">
+      <div class="card reveal">
+        <div class="card-head row">
+          <h3>Mean IoU by method</h3>
+          <div class="seg small" id="metricSeg"></div>
+        </div>
+        <div class="seg scroll" id="splitSeg" role="tablist" aria-label="Benchmark split"></div>
+        <div class="bars" id="bars"></div>
+        <p class="note" id="barsNote"></p>
+      </div>
+      <div class="card reveal">
+        <div class="card-head"><h3>Relative IoU gain over the best prior method</h3><p>Across splits, from easiest to hardest.</p></div>
+        <div class="gain" id="gainChart"></div>
+      </div>
+    </div>
+
+    <div class="compare reveal" id="compare">
+      <div class="compare-head">
+        <h3>What search fixes</h3>
+        <p>The policy gets the structure; search recovers the teeth, holes, and wall thickness it missed.</p>
+      </div>
+      <div class="compare-grid" id="compareGrid"></div>
+    </div>
+
+    <figure class="fig reveal">
+      <button class="zoomable" data-full="static/img/figs/mesh-results.webp" aria-label="Enlarge qualitative results">
+        <img src="static/img/figs/mesh-results.webp" alt="Qualitative comparison: input meshes and reconstructions from StepCAD, CAD-Recode, Cadrille and CADEvolve." loading="lazy" width="1800" height="698">
+      </button>
+      <figcaption><b>Qualitative comparison.</b> Rows: input mesh, StepCAD, CAD-Recode, Cadrille, CADEvolve. StepCAD keeps both the global structure and fine features; its lofts and revolves capture the organic shapes on the right.</figcaption>
+    </figure>
+
+    <div class="card ablation reveal">
+      <div class="card-head"><h3>Where the gains come from</h3><p>Mean IoU across CADBench as components are added.</p></div>
+      <div class="stairs" id="stairs"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ APPLICATIONS ============ -->
+<section class="section" id="applications">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <h2 class="eyebrow">Beyond reconstruction</h2>
+      <p class="h2">A distribution over ways to build a part</p>
+    </div>
+    <div class="seg app-seg reveal" id="appSeg" role="tablist">
+      <button role="tab" aria-selected="true" data-i="0">Design variants</button>
+      <button role="tab" aria-selected="false" data-i="1">Image → CAD</button>
+      <button role="tab" aria-selected="false" data-i="2">One mesh, many programs</button>
+    </div>
+    <div class="app-panels reveal">
+      <figure class="app on">
+        <button class="zoomable" data-full="static/img/figs/variants.webp"><img src="static/img/figs/variants.webp" alt="Diverse editable CAD variants generated from a single reference mesh." loading="lazy" width="1669" height="725"></button>
+        <figcaption>Sampling Π-StepCAD on one reference mesh gives diverse, editable CAD variants that keep its overall structure, which is useful for fast design exploration.</figcaption>
+      </figure>
+      <figure class="app">
+        <button class="zoomable" data-full="static/img/figs/image-to-cad-stepcad.webp"><img src="static/img/figs/image-to-cad-stepcad.webp" alt="Image-to-CAD pipeline: image to Hunyuan3D mesh to StepCAD program." loading="lazy" width="1800" height="666"></button>
+        <figcaption>Chained after an image-to-3D model such as Hunyuan3D, StepCAD turns a single photo or sketch into a parametric CAD program.</figcaption>
+      </figure>
+      <figure class="app">
+        <button class="zoomable" data-full="static/img/figs/one-to-many.webp"><img src="static/img/figs/one-to-many.webp" alt="Multiple valid CAD programs with different operation sequences producing nearly identical geometry." loading="lazy" width="1751" height="899"></button>
+        <figcaption>Mesh-to-CAD is one-to-many. The policy produces several valid programs with different operation sequences and nearly identical geometry, so it has learned construction strategies rather than memorised one.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ BIBTEX ============ -->
+<section class="section band" id="bibtex">
+  <div class="wrap narrow reveal">
+    <h2 class="eyebrow">Citation</h2>
+    <div class="bib">
+      <button class="copy" id="copyBib">Copy</button>
+<pre id="bibText">@inproceedings{nehme2026stepcad,
+  title     = {StepCAD: Mesh-to-CAD Code Generation via LLM Policy
+               and Geometry-Guided Search},
+  author    = {Nehme, Ghadi and Ahmed, Faez},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2026}
+}</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MORE PROJECTS ============ -->
+<section class="section" id="more">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <h2 class="eyebrow">More from this line of research</h2>
+      <p class="h2">AI for engineering design</p>
+    </div>
+    <div class="projects">
+      <a class="proj reveal" href="https://ghadinehme.com/videocad.github.io/" style="--c:var(--c-videocad)">
+        <div class="proj-img"><img src="static/img/projects/videocad.webp" alt="VideoCAD teaser" loading="lazy"></div>
+        <div class="proj-body"><span class="proj-venue">NeurIPS 2025</span><h3>VideoCAD</h3>
+          <p>A dataset and model for learning long-horizon 3D CAD UI interactions from video.</p><span class="go">Visit project →</span></div>
+      </a>
+      <a class="proj reveal" href="https://ghadinehme.com/cadfit.github.io/" style="--c:var(--c-cadfit)">
+        <div class="proj-img"><img src="static/img/projects/cadfit.webp" alt="CADFit teaser" loading="lazy"></div>
+        <div class="proj-body"><span class="proj-venue">ICML 2026</span><h3>CADFit</h3>
+          <p>Precise mesh-to-CAD program generation with hybrid optimization.</p><span class="go">Visit project →</span></div>
+      </a>
+      <a class="proj reveal" href="https://ghadinehme.com/lamp.github.io/" style="--c:var(--c-lamp)">
+        <div class="proj-img"><img src="static/img/projects/lamp.webp" alt="LAMP teaser" loading="lazy"></div>
+        <div class="proj-body"><span class="proj-venue">ICML 2026</span><h3>LAMP</h3>
+          <p>Data-efficient linear affine weight-space models for parameter-controlled 3D shape generation and extrapolation.</p><span class="go">Visit project →</span></div>
+      </a>
+      <a class="proj home reveal" href="https://ghadinehme.com/">
+        <div class="proj-body"><span class="proj-venue">Homepage</span><h3>All publications</h3>
+          <p>CADBench, FLARE (IDETC 2026 Best Paper), and everything else.</p><span class="go">ghadinehme.com →</span></div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="wrap">
+    <p>© 2026 Ghadi Nehme · MIT DeCoDE Lab</p>
+    <p><a href="#top">Back to top ↑</a></p>
+  </div>
+</footer>
+
+<div class="lightbox" id="lightbox" hidden><img alt=""><button aria-label="Close">×</button></div>
+
+<script src="static/js/main.js" defer></script>
+<script type="module" src="static/js/viewer.js"></script>
+</body>
+</html>
