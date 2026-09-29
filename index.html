@@ -17,8 +17,8 @@
   <link rel="stylesheet" href="./static/css/bulma.min.css">
   <link rel="stylesheet"
         href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
-  <link rel="stylesheet" href="./static/css/index.css">
-  <link rel="stylesheet" href="./static/css/stepcad.css">
+  <link rel="stylesheet" href="./static/css/index.css?v=20260928b">
+  <link rel="stylesheet" href="./static/css/stepcad.css?v=20260928b">
   <link rel="icon" href="./static/images/icon.png">
 
   <script defer src="./static/js/fontawesome.all.min.js"></script>
@@ -28,8 +28,9 @@
       "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
   } }
   </script>
-  <script defer src="./static/js/main.js"></script>
-  <script type="module" src="./static/js/viewer.js"></script>
+  <script defer src="./static/js/main.js?v=20260928b"></script>
+  <script defer src="./static/js/sections.js?v=20260928b"></script>
+  <script type="module" src="./static/js/viewer.js?v=20260928b"></script>
 </head>
 <body>
 
@@ -69,6 +70,13 @@
         </div>
         <i class="fas fa-external-link-alt"></i>
       </a>
+      <a href="https://ghadinehme.com/publications.html" class="work-item all-pubs">
+        <div class="work-info">
+          <h5>All research papers by Ghadi Nehme</h5>
+          <p class="work-venue">ghadinehme.com/publications</p>
+        </div>
+        <i class="fas fa-arrow-right"></i>
+      </a>
     </div>
   </div>
 </div>
@@ -84,7 +92,7 @@
 
       <div class="is-size-5 publication-authors">
         <span class="author-block">
-          <a href="https://www.linkedin.com/in/ghadi-nehme/" target="_blank" rel="noopener noreferrer">
+          <a href="https://ghadinehme.com/" target="_blank" rel="noopener noreferrer">
             Ghadi Nehme
           </a>,
         </span>
@@ -120,12 +128,6 @@
               <span>ARCADE-1.5M (soon)</span>
             </a>
           </span>
-          <span class="link-block">
-            <a href="#video" class="external-link button is-normal is-rounded is-dark">
-              <span class="icon"><i class="fas fa-play"></i></span>
-              <span>Video</span>
-            </a>
-          </span>
         </div>
       </div>
     </div>
@@ -141,6 +143,7 @@
         <div class="studio-view">
           <canvas id="viewer" aria-label="Interactive 3D replay of a StepCAD reconstruction"></canvas>
           <div class="hud hud-tl">
+            <span class="split-tag" id="splitTag">CADBench</span>
             <span class="stage-tag" id="stageTag">Stage I · Policy</span>
             <span class="op-tag" id="opTag">extrude</span>
           </div>
@@ -151,8 +154,6 @@
             <span><i class="sw ghost"></i>Input mesh</span>
             <span class="lg-policy"><i class="sw policy"></i>Policy program</span>
             <span class="lg-search"><i class="sw search"></i>After search</span>
-            <span class="lg-add"><i class="sw add"></i>Material added</span>
-            <span class="lg-rem"><i class="sw rem"></i>Material removed</span>
           </div>
           <div class="hud hud-br toggles">
             <label><input type="checkbox" id="tgGhost" checked><span>Input</span></label>
@@ -187,7 +188,7 @@
         <strong>StepCAD</strong> writes a CadQuery program <em>one operation at a time</em>, looking at the
         target and at the part built so far, then a geometry-guided search makes <em>local</em> edits that
         close the remaining gap.
-        <span class="teaser-note">Real outputs on CADBench, replayed operation by operation in CadQuery and scored against the input mesh after every step and every search edit.</span>
+        <span class="teaser-note">An illustrative part built to show both stages. Every step is a real CadQuery program, executed and scored by IoU against the target part. Real CADBench runs follow in the method and results below.</span>
       </h2>
     </div>
   </div>
@@ -201,7 +202,6 @@
       <div class="column"><b>1.5M</b><span>executable CAD programs in ARCADE-1.5M</span></div>
       <div class="column"><b>12.5M</b><span>intermediate state–action transitions</span></div>
       <div class="column"><b>150+</b><span>operations in the longest programs</span></div>
-      <div class="column"><b>100%</b><span>valid programs on every CADBench split</span></div>
     </div>
   </div>
 </section>
@@ -243,86 +243,114 @@
   </div>
 </section>
 
-<!-- VIDEO -->
-<section class="section" id="video">
-  <div class="container is-max-desktop has-text-centered">
-    <h2 class="title is-3">Video</h2>
-    <div class="video-wrap">
-      <video src="./static/video/stepcad_walkthrough.mp4" poster="./static/video/stepcad_poster.jpg"
-             controls muted loop playsinline preload="none"></video>
-    </div>
-    <p class="caption">
-      The policy's draft reaches IoU 0.874. Search tries refining a height, editing a sketch and skipping
-      operations, keeps only the branches that improve the fit, and ends at 0.999 with a short, editable program.
-    </p>
-  </div>
-</section>
-
 <!-- METHOD -->
-<section class="section">
+<section class="section" id="method">
   <div class="container is-max-desktop has-text-centered">
     <h2 class="title is-3">Method</h2>
-    <a class="zoomable" data-full="./static/img/figs/main-method.webp">
-      <img src="./static/img/figs/main-method.webp" alt="StepCAD pipeline" class="figure" loading="lazy">
-    </a>
-    <div class="columns stage-cols">
-      <div class="column">
-        <div class="stage-card policy">
-          <p class="stage-kicker">Stage I</p>
-          <h4 class="title is-5">Π-StepCAD: a state-conditioned CAD policy</h4>
-          <p>
-            A <strong>Qwen2.5-Coder-1.5B</strong> policy predicts the next CadQuery operation
-            π<sub>θ</sub>(a<sub>t</sub> | Q<sub>t−1</sub>, Q<sub>m</sub>, a<sub>&lt;t</sub>) from the
-            <strong>target</strong> point cloud, the <strong>current intermediate geometry</strong> and the
-            operations written so far. Both clouds pass through a shared Point-MAE encoder. At inference,
-            generation alternates between predicting an operation, executing it in CadQuery and re-sampling the
-            new shape, so every decision sees its own progress.
-          </p>
+    <div class="content has-text-justified">
+      <p>
+        StepCAD splits mesh-to-CAD into two parts. A <strong>learned policy</strong> writes the program one
+        operation at a time and sees the geometry it has built so far. A <strong>geometry-guided search</strong>
+        then makes local edits to that program wherever it still disagrees with the input. Everything below is
+        drawn from one real run on a CADBench part: a stepped boss from CADBench's ABC set, also the first part in the replay above.
+      </p>
+    </div>
+
+    <!-- Stage I -->
+    <div class="stage-head policy"><span class="stage-num">I</span><div><h3>Π-StepCAD writes the program step by step</h3>
+      <p>At each step the policy sees the target and the current shape, predicts the next CadQuery operation, and the kernel executes it.</p></div></div>
+    <div class="loop-diagram" id="loopDiagram">
+      <div class="ld-col">
+        <div class="ld-card">
+          <div class="ld-label">Input mesh <em>m</em></div>
+          <img src="./static/img/method/m_target.webp" alt="Input mesh: stepped boss">
+        </div>
+        <div class="ld-arrow down">sample</div>
+        <div class="ld-card">
+          <div class="ld-label">Target cloud <em>Q<sub>m</sub></em></div>
+          <img src="./static/img/method/m_cloud.webp" alt="Point cloud sampled from the input mesh">
         </div>
       </div>
-      <div class="column">
-        <div class="stage-card search">
-          <p class="stage-kicker">Stage II</p>
-          <h4 class="title is-5">Geometry-aware program search</h4>
-          <p>
-            Starting from the policy's program, a beam search (<strong>K = 2</strong>) walks the operations in
-            execution order. At each one it tries four <strong>local edits</strong>, executes every candidate and
-            keeps the programs with the highest <strong>IoU</strong> against the input mesh. The structure the
-            policy found is kept; only the parts that are off get fixed. Cost is linear in program length.
-          </p>
+      <div class="ld-mid">
+        <div class="ld-chip enc">Shared Point-MAE encoder</div>
+        <div class="ld-tokens" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><b>+</b><i class="s"></i><i class="s"></i><i class="s"></i><i class="s"></i><i class="s"></i></div>
+        <div class="ld-chip llm">Qwen2.5-Coder-1.5B policy<small>π<sub>θ</sub>(a<sub>t</sub> | Q<sub>t−1</sub>, Q<sub>m</sub>, a<sub>&lt;t</sub>)</small></div>
+        <pre class="ld-code" id="ldCode"></pre>
+        <div class="ld-chip exec">Execute in CadQuery · sample Q<sub>t</sub></div>
+      </div>
+      <div class="ld-col">
+        <div class="ld-card state">
+          <div class="ld-label">Current shape <em>S<sub>t</sub></em> <span class="ld-step" id="ldStep">step 1</span></div>
+          <img id="ldState" src="./static/img/method/m_p0.webp" alt="Intermediate shape">
+          <div class="ld-iou">IoU <b id="ldIou">0.653</b></div>
+        </div>
+        <div class="ld-arrow up">feeds back as Q<sub>t</sub></div>
+      </div>
+    </div>
+    <div class="filmstrip" id="filmstrip"></div>
+
+    <!-- Stage II -->
+    <div class="stage-head search"><span class="stage-num">II</span><div><h3>Search fixes what is off, locally</h3>
+      <p>A beam search (K = 2) walks the program in order. At every operation it tries four local edits, executes each candidate, and keeps the two best by IoU.</p></div></div>
+    <div class="columns is-variable is-5 search-row">
+      <div class="column is-7">
+        <div class="panel-box tree-box">
+          <div class="tree-head">
+            <h4 class="title is-6">The actual search on the stepped boss</h4>
+            <div class="kind-legend" id="kindLegend"></div>
+          </div>
+          <div id="searchTree" class="search-tree"></div>
+          <p class="panel-note" id="treeNote">Hover a candidate to see the edit it tried.</p>
+        </div>
+      </div>
+      <div class="column is-5">
+        <div class="edit-cards" id="editCards">
+          <div class="edit-card" data-kind="sketch">
+            <div class="ec-head"><span class="ec-dot"></span><b>Edit sketch</b><span class="ec-d">+0.117 IoU</span></div>
+            <div class="ec-split">Bearing housing · Mechanical</div>
+            <div class="ec-pair"><img src="./static/img/method/edit_sketch_before.webp" alt="Before sketch edit"><span>→</span><img src="./static/img/method/edit_sketch_after.webp" alt="After sketch edit"></div>
+            <p>Replaces the base sketch with the profile sliced from the mesh at that plane, recovering the housing's outline.</p>
+          </div>
+          <div class="edit-card" data-kind="ccut">
+            <div class="ec-head"><span class="ec-dot"></span><b>Complement cut</b><span class="ec-d">+0.039 IoU</span></div>
+            <div class="ec-split">Bladed disc · DeepCAD medium</div>
+            <div class="ec-pair"><img src="./static/img/method/edit_ccut_before.webp" alt="Before complement cut"><span>→</span><img src="./static/img/method/edit_ccut_after.webp" alt="After complement cut"></div>
+            <p>Adds a cut-extrude that removes material the program put where the mesh has none.</p>
+          </div>
+          <div class="edit-card" data-kind="refine">
+            <div class="ec-head"><span class="ec-dot"></span><b>Refine parameters</b><span class="ec-d">+0.032 IoU</span></div>
+            <div class="ec-split">Bladed disc · DeepCAD medium</div>
+            <div class="ec-pair"><img src="./static/img/method/edit_refine_before.webp" alt="Before refinement"><span>→</span><img src="./static/img/method/edit_refine_after.webp" alt="After refinement"></div>
+            <p>Bayesian optimisation of one operation's depths, radii and sketch dimensions.</p>
+          </div>
+          <div class="edit-card" data-kind="skip">
+            <div class="ec-head"><span class="ec-dot"></span><b>Skip operation</b><span class="ec-d">+0.028 IoU</span></div>
+            <div class="ec-split">DC motor · Mechanical</div>
+            <div class="ec-pair"><img src="./static/img/method/edit_skip_before.webp" alt="Before skipping"><span>→</span><img src="./static/img/method/edit_skip_after.webp" alt="After skipping"></div>
+            <p>Drops an operation that hurts the fit, here a cut that took away material the motor body needs.</p>
+          </div>
         </div>
       </div>
     </div>
-    <div class="columns is-multiline edits">
-      <div class="column is-3-desktop is-6-tablet"><div class="edit"><span class="edit-ic refine"><i class="fas fa-sliders-h"></i></span><h5>Refine parameters</h5><p>Bayesian optimisation of depths, radii and sketch dimensions.</p></div></div>
-      <div class="column is-3-desktop is-6-tablet"><div class="edit"><span class="edit-ic sketch"><i class="fas fa-draw-polygon"></i></span><h5>Edit sketch</h5><p>Swap a sketch for the profile sliced from the input mesh at that plane.</p></div></div>
-      <div class="column is-3-desktop is-6-tablet"><div class="edit"><span class="edit-ic ccut"><i class="fas fa-cut"></i></span><h5>Complement cut</h5><p>Remove overshoot with automatically generated cut-extrudes.</p></div></div>
-      <div class="column is-3-desktop is-6-tablet"><div class="edit"><span class="edit-ic skip"><i class="fas fa-forward"></i></span><h5>Skip operation</h5><p>Drop operations that are redundant or hurt the fit.</p></div></div>
-    </div>
+    <p class="caption small-cap"><span class="sw-inline add"></span>material added and <span class="sw-inline rem"></span>material removed by each edit, from exact B-rep Booleans between the program before and after.</p>
   </div>
 </section>
 
 <!-- ARCADE -->
-<section class="section">
+<section class="section section-alt" id="arcade">
   <div class="container is-max-desktop has-text-centered">
     <h2 class="title is-3">ARCADE-1.5M Dataset</h2>
     <div class="content has-text-justified">
       <p>
-        <strong>ARCADE-1.5M</strong> contains 1.5M executable CadQuery programs, built by
-        <strong>94 workflow-inspired strategies</strong> from ABC sketch loops.
-        Solids come from extrude, revolve, loft and sweep, with Booleans, shells, mirrors, fillets, chamfers and
-        patterns on top. Every intermediate state must be a valid single solid, and every program is re-executed
-        from scratch before export. Each sample includes the script, a STEP B-rep, a mesh, a 10K point cloud with
-        normals, and the geometry after every solid operation (<strong>12.5M</strong> states in total).
+        To learn operations beyond sketch-and-extrude, we built <strong>ARCADE-1.5M</strong>: 1.5M executable CadQuery programs
+        generated by <strong>94 workflow-inspired strategies</strong> from ABC sketch loops. Every intermediate state must be a
+        valid single solid, every program is re-executed from scratch before export, and the geometry after each solid
+        operation is kept. That gives <strong>12.5M</strong> state–action pairs for training the policy.
       </p>
     </div>
   </div>
-  <div class="marquee" aria-label="Samples from ARCADE-1.5M">
-    <div class="marquee-row" id="mq1"></div>
-    <div class="marquee-row rev" id="mq2"></div>
-  </div>
   <div class="container is-max-desktop">
-    <div class="columns">
+    <div class="columns is-variable is-5">
       <div class="column is-7">
         <div class="panel-box">
           <h4 class="title is-5">Solid-operation coverage</h4>
@@ -340,18 +368,11 @@
         </div>
       </div>
     </div>
-    <a class="zoomable" data-full="./static/img/figs/dataset-gen.webp">
-      <img src="./static/img/figs/dataset-gen.webp" alt="ARCADE-1.5M generation pipeline" class="figure" loading="lazy">
-    </a>
-    <p class="caption">
-      Sketches are perturbed, placed on faces of a bounding box, and turned into solids by extrude, revolve, loft
-      or sweep. They are then composed under overlap and validity constraints and re-validated before export.
-    </p>
   </div>
 </section>
 
 <!-- RESULTS -->
-<section class="section">
+<section class="section" id="results">
   <div class="container is-max-desktop has-text-centered">
     <h2 class="title is-3">Mesh-to-CAD Results</h2>
     <div class="content has-text-justified">
@@ -362,7 +383,7 @@
         the larger the lead</strong>.
       </p>
     </div>
-    <div class="columns">
+    <div class="columns is-variable is-5">
       <div class="column is-7">
         <div class="panel-box">
           <div class="panel-head">
@@ -383,44 +404,14 @@
       </div>
     </div>
 
-    <a class="zoomable" data-full="./static/img/figs/mesh-results.webp">
-      <img src="./static/img/figs/mesh-results.webp" alt="Qualitative mesh-to-CAD results" class="figure" loading="lazy">
-    </a>
-    <p class="caption">
-      Rows: input mesh, StepCAD, CAD-Recode, Cadrille, CADEvolve. StepCAD keeps both the global structure and fine
-      features. Its lofts and revolves capture the organic shapes on the right, where baselines fall back to extrusions.
-    </p>
+    <h3 class="title is-4 sub-title">Reconstructions</h3>
+    <p class="caption">Parts from CADBench's ABC split, from easy to hard, next to the CadQuery programs StepCAD recovers for them. Hover or tap a card to see the input.</p>
+    <div class="gallery" id="gallery"></div>
 
     <div class="panel-box ablation">
       <h4 class="title is-5">Where the gains come from</h4>
       <p class="panel-sub">Mean IoU in the ablation study as each component is added.</p>
       <div class="stairs" id="stairs"></div>
-    </div>
-  </div>
-</section>
-
-<!-- APPLICATIONS -->
-<section class="section">
-  <div class="container is-max-desktop has-text-centered">
-    <h2 class="title is-3">Beyond Reconstruction</h2>
-    <div class="tabs is-centered is-toggle app-tabs" id="appTabs">
-      <ul>
-        <li class="is-active" data-i="0"><a>Design variants</a></li>
-        <li data-i="1"><a>Image → CAD</a></li>
-        <li data-i="2"><a>One mesh, many programs</a></li>
-      </ul>
-    </div>
-    <div class="app on">
-      <a class="zoomable" data-full="./static/img/figs/variants.webp"><img src="./static/img/figs/variants.webp" alt="Design variants from one mesh" class="figure" loading="lazy"></a>
-      <p class="caption">Sampling Π-StepCAD on a single reference mesh gives diverse, editable CAD variants that keep its overall structure, which is useful for fast design exploration.</p>
-    </div>
-    <div class="app">
-      <a class="zoomable" data-full="./static/img/figs/image-to-cad-stepcad.webp"><img src="./static/img/figs/image-to-cad-stepcad.webp" alt="Image to CAD" class="figure" loading="lazy"></a>
-      <p class="caption">Chained after an image-to-3D model such as <a href="https://github.com/Tencent-Hunyuan/Hunyuan3D-2" target="_blank" rel="noopener noreferrer">Hunyuan3D</a>, StepCAD turns a single image into a parametric CAD program.</p>
-    </div>
-    <div class="app">
-      <a class="zoomable" data-full="./static/img/figs/one-to-many.webp"><img src="./static/img/figs/one-to-many.webp" alt="One mesh, many programs" class="figure" loading="lazy"></a>
-      <p class="caption">Mesh-to-CAD is one-to-many. The policy produces several valid programs with different operation sequences and nearly identical geometry, so it has learned construction strategies rather than memorising one.</p>
     </div>
   </div>
 </section>

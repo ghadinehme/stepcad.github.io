@@ -55,7 +55,7 @@ const solidMat = new THREE.MeshPhysicalMaterial({ color: COL.policy, metalness: 
 const edgeMat = new THREE.LineBasicMaterial({ color: 0x1b2433, transparent: true, opacity: 0.45 });
 const ghostMat = new THREE.MeshBasicMaterial({ color: 0x8a9bb8, transparent: true, opacity: 0.08, depthWrite: false, side: THREE.DoubleSide });
 const ghostEdgeMat = new THREE.LineDashedMaterial({ color: 0x6d7f9e, transparent: true, opacity: 0.5, dashSize: 0.035, gapSize: 0.025, depthWrite: false });
-const addMat = new THREE.MeshStandardMaterial({ color: 0x22b35e, emissive: 0x22b35e, emissiveIntensity: 0.35, roughness: 0.5, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, transparent: true, opacity: 0.95 });
+const addMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xf59e0b, emissiveIntensity: 0.35, roughness: 0.5, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, transparent: true, opacity: 0.95 });
 const remMat = new THREE.MeshStandardMaterial({ color: 0xe5484d, emissive: 0xe5484d, emissiveIntensity: 0.25, roughness: 0.6, transparent: true, opacity: 0.38, depthWrite: false, side: THREE.DoubleSide });
 const remEdgeMat = new THREE.LineBasicMaterial({ color: 0xc9363b, transparent: true, opacity: 0.8 });
 
@@ -85,7 +85,7 @@ function prep(mesh) {
 
 async function load(ex) {
   if (cache.has(ex.key)) return cache.get(ex.key);
-  const gltf = await loader.loadAsync(`./static/models/${ex.key}.glb`);
+  const gltf = await loader.loadAsync(`./static/models/${ex.key}.glb?v=20260928b`);
   gltf.scene.updateMatrixWorld(true);
   const raw = {};
   gltf.scene.traverse(o => { if (o.isMesh) raw[o.name] = o; });
@@ -119,7 +119,7 @@ function frame(e) {
 /* ---------- UI refs ---------- */
 const chips = $('#exChips'), laneP = $('#lanePolicy'), laneS = $('#laneSearch'), chart = $('#chart'), code = $('#code');
 const stageTag = $('#stageTag'), opTag = $('#opTag'), iouVal = $('#iouVal'), iouBar = $('#iouBar'), codeTitle = $('#codeTitle');
-const legend = $('#legend3d'), playBtn = $('#playBtn'), loadingEl = $('#viewLoading');
+const legend = $('#legend3d'), playBtn = $('#playBtn'), loadingEl = $('#viewLoading'), splitTag = $('#splitTag');
 laneP.classList.add('p'); laneS.classList.add('s');
 
 const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -204,12 +204,7 @@ async function show(i) {
     g = e.policy[i];
     addMesh.visible = remMesh.visible = remEdges.visible = false;
   } else {
-    const s = e.search[i - P];
-    g = s.solid;
-    addMesh.geometry = s.add || new THREE.BufferGeometry(); addMesh.visible = !!s.add;
-    remMesh.geometry = s.rem || new THREE.BufferGeometry(); remMesh.visible = !!s.rem;
-    if (s.rem) { remEdges.geometry = edgesOf(e, `rem${i}`, s.rem); remEdges.visible = true; } else remEdges.visible = false;
-    pulse = 1;
+    g = e.search[i - P].solid;
   }
   solid.geometry = g; solidEdges.geometry = edgesOf(e, `g${i}`, g);
   solid.visible = true; solidEdges.visible = tgEdges.checked;
@@ -232,6 +227,7 @@ async function select(i, keepCam = false) {
   chips.querySelectorAll('button').forEach((b, k) => b.setAttribute('aria-selected', k === i));
   const ex = examples[i];
   buildLanes(ex);
+  splitTag.textContent = ex.label || `CADBench · ${ex.split}`;
   loadingEl.classList.remove('done');
   const e = await load(ex);
   if (ex !== examples[cur]) return;
@@ -314,11 +310,12 @@ new IntersectionObserver(es => es.forEach(e => {
 renderer.setAnimationLoop(loop);
 
 /* ---------- boot ---------- */
-fetch('./static/models/examples.json').then(r => r.json()).then(data => {
+fetch('./static/models/examples.json?v=20260928b').then(r => r.json()).then(data => {
   examples = data;
+  if (data.length < 2) chips.closest('.side-row').hidden = true;
   data.forEach((ex, i) => {
     const b = document.createElement('button');
-    b.textContent = ex.name; b.setAttribute('role', 'tab');
+    b.textContent = ex.name; b.title = `CADBench · ${ex.split}`; b.setAttribute('role', 'tab');
     b.addEventListener('click', () => { userTouched = true; select(i); });
     chips.appendChild(b);
   });

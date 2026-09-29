@@ -19,17 +19,6 @@
   document.addEventListener('click', e => { if (!mw.contains(e.target)) setMW(false); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') setMW(false); });
 
-  /* ---------- ARCADE marquee ---------- */
-  const mk = (row, ids) => {
-    [...ids, ...ids].forEach((i, k) => {
-      const d = el('div'), im = el('img');
-      im.src = `./static/img/arcade/a${String(i).padStart(2, '0')}.webp`; im.alt = k < ids.length ? 'ARCADE-1.5M sample' : ''; im.loading = 'lazy';
-      d.appendChild(im); row.appendChild(d);
-    });
-  };
-  mk($('#mq1'), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
-  mk($('#mq2'), [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]);
-
   /* ---------- operation coverage ---------- */
   const OPS = ['Extrude', 'Revolve', 'Sweep', 'Loft', 'Fillet', 'Chamfer', 'Shell', 'Mirror'];
   const COV = {
@@ -156,13 +145,6 @@
       c.style.height = `calc((100% - ${c.nextElementSibling.offsetHeight + 8}px) * ${c.dataset.h / 100})`;
     }, reduced ? 0 : i * 160));
   }, 0.35);
-
-  /* ---------- application tabs ---------- */
-  const appTabs = document.querySelectorAll('#appTabs li'), apps = document.querySelectorAll('.app');
-  appTabs.forEach(li => li.addEventListener('click', () => {
-    appTabs.forEach(x => x.classList.toggle('is-active', x === li));
-    apps.forEach((a, i) => a.classList.toggle('on', i === +li.dataset.i));
-  }));
 
   /* ---------- lightbox ---------- */
   const lb = $('#lightbox'), lbImg = lb.querySelector('img');
