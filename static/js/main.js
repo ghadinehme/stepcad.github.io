@@ -131,12 +131,14 @@
   })();
 
   /* ---------- ablation staircase ---------- */
-  const ST = [['CADEvolve', 'baseline data & model', 0.568], ['Π-StepCAD', 'ARCADE data, no state tokens', 0.632],
-              ['Π-StepCAD', '+ intermediate geometry', 0.682], ['StepCAD', '+ geometry-aware search', 0.816]];
+  // Paper Table 3. Gains are marked only where the paper makes the comparison.
+  const ST = [['CADEvolve', 'public checkpoint', 0.568, ''], ['Single-shot Qwen2.5', 'on ARCADE-1.5M', 0.644, ''],
+              ['Π-StepCAD', 'w/o previous-geometry tokens', 0.632, ''], ['Π-StepCAD', '+ intermediate geometry', 0.682, '+0.050'],
+              ['StepCAD', '+ geometry-aware search', 0.816, '+0.134']];
   const stairs = $('#stairs');
-  ST.forEach(([a, b, v], i) => {
+  ST.forEach(([a, b, v, dl], i) => {
     const s = el('div', `step s${i}`);
-    s.innerHTML = `<div class="col" data-h="${v / 0.9 * 100}">${i ? `<span class="delta">+${(v - ST[i - 1][2]).toFixed(3)}</span>` : ''}<b>${v.toFixed(3)}</b></div><div class="lbl">${a}<small>${b}</small></div>`;
+    s.innerHTML = `<div class="col" data-h="${v / 0.9 * 100}">${dl ? `<span class="delta">${dl}</span>` : ''}<b>${v.toFixed(3)}</b></div><div class="lbl">${a}<small>${b}</small></div>`;
     stairs.appendChild(s);
   });
   onView(stairs, () => {

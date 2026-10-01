@@ -17,8 +17,8 @@
   <link rel="stylesheet" href="./static/css/bulma.min.css">
   <link rel="stylesheet"
         href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
-  <link rel="stylesheet" href="./static/css/index.css?v=20260928b">
-  <link rel="stylesheet" href="./static/css/stepcad.css?v=20260928b">
+  <link rel="stylesheet" href="./static/css/index.css?v=20261001a">
+  <link rel="stylesheet" href="./static/css/stepcad.css?v=20261001a">
   <link rel="icon" href="./static/images/icon.png">
 
   <script defer src="./static/js/fontawesome.all.min.js"></script>
@@ -28,9 +28,9 @@
       "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
   } }
   </script>
-  <script defer src="./static/js/main.js?v=20260928b"></script>
-  <script defer src="./static/js/sections.js?v=20260928b"></script>
-  <script type="module" src="./static/js/viewer.js?v=20260928b"></script>
+  <script defer src="./static/js/main.js?v=20261001a"></script>
+  <script defer src="./static/js/sections.js?v=20261001a"></script>
+  <script type="module" src="./static/js/viewer.js?v=20261001a"></script>
 </head>
 <body>
 
@@ -215,28 +215,26 @@
         <h2 class="title is-3">Abstract</h2>
         <div class="content has-text-justified">
           <p>
-            Recovering <strong>executable CAD programs from 3D meshes</strong> is fundamentally challenging due to
-            the long-horizon, compositional nature of CAD construction and the need for precise estimation of both
-            discrete operations and continuous parameters. Existing learning-based methods primarily treat
-            mesh-to-CAD reconstruction as <strong>one-shot sequence prediction</strong> and are largely limited to
-            simple sketch-extrude pipelines, restricting operation diversity and preventing the use of intermediate
-            geometric feedback, with no mechanism for refining generated programs.
+            Recovering <strong>executable CAD programs from 3D meshes</strong> is challenging due to the compositional
+            nature of CAD construction and the interaction between discrete modeling choices and continuous parameters.
+            Many learning-based methods predict complete programs in a single pass and rely predominantly on
+            sketch-extrude representations, limiting operation diversity and opportunities to correct geometric errors
+            during reconstruction.
           </p>
           <p>
-            We introduce <strong>StepCAD</strong>, a generative optimization approach that performs
-            <strong>step-by-step, geometry-conditioned program synthesis</strong> followed by
-            <strong>explicit refinement in program space</strong>. Given an input mesh, StepCAD first predicts
-            construction sequences using a state-conditioned CAD policy conditioned on both target and intermediate
-            geometry, then refines them through <strong>IoU-guided tree search over local program edits</strong>.
-            To address the limited operation diversity in prior work, we further introduce
-            <strong>ARCADE-1.5M</strong>, a large-scale dataset of 1.5M executable CAD programs with diverse
-            operations, long-horizon sequences up to 150+ operations, and 12.5M intermediate state-action transitions.
+            We introduce <strong>StepCAD</strong>, a generative optimization approach that combines a
+            <strong>state-conditioned CAD policy</strong> with <strong>geometry-guided search</strong>. Given an input
+            mesh, the policy predicts construction actions conditioned on both target and intermediate geometry, and an
+            <strong>IoU-guided tree search</strong> refines the resulting program through local edits. We also introduce
+            <strong>ARCADE-1.5M</strong>, a large-scale dataset of 1.5M executable CAD programs spanning diverse
+            operations, sequences with a maximum length of 150+ counted operations, and 12.5M intermediate state-action
+            transitions.
           </p>
           <p>
-            Experiments on multiple CAD reconstruction benchmarks show that StepCAD achieves
-            <strong>state-of-the-art reconstruction accuracy, validity, and robustness</strong>, with up to
-            <strong>87.2% relative IoU improvement</strong> over the best prior method and increasingly larger
-            gains as shape complexity increases.
+            Experiments across multiple CAD reconstruction benchmarks show that StepCAD achieves
+            <strong>state-of-the-art geometric reconstruction accuracy</strong> with consistently high validity, yielding
+            up to <strong>87.2% relative IoU improvement</strong> over the strongest evaluated baseline, with particularly
+            large gains on complex shapes.
           </p>
         </div>
       </div>
@@ -411,7 +409,7 @@
 
     <div class="panel-box ablation">
       <h4 class="title is-5">Where the gains come from</h4>
-      <p class="panel-sub">Mean IoU in the ablation study as each component is added.</p>
+      <p class="panel-sub">Training data, state conditioning and search (paper Table 3). All variants except the public CADEvolve checkpoint are trained on ARCADE-1.5M.</p>
       <div class="stairs" id="stairs"></div>
     </div>
   </div>

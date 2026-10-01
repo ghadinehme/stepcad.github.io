@@ -85,7 +85,7 @@ function prep(mesh) {
 
 async function load(ex) {
   if (cache.has(ex.key)) return cache.get(ex.key);
-  const gltf = await loader.loadAsync(`./static/models/${ex.key}.glb?v=20260928b`);
+  const gltf = await loader.loadAsync(`./static/models/${ex.key}.glb?v=20261001a`);
   gltf.scene.updateMatrixWorld(true);
   const raw = {};
   gltf.scene.traverse(o => { if (o.isMesh) raw[o.name] = o; });
@@ -310,7 +310,7 @@ new IntersectionObserver(es => es.forEach(e => {
 renderer.setAnimationLoop(loop);
 
 /* ---------- boot ---------- */
-fetch('./static/models/examples.json?v=20260928b').then(r => r.json()).then(data => {
+fetch('./static/models/examples.json?v=20261001a').then(r => r.json()).then(data => {
   examples = data;
   if (data.length < 2) chips.closest('.side-row').hidden = true;
   data.forEach((ex, i) => {

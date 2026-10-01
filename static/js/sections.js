@@ -3,7 +3,7 @@
    sections.json (gallery IoUs and splits). All images are renders of real geometry. */
 (function () {
   'use strict';
-  const V = '20260928b';
+  const V = '20261001a';
   const $ = s => document.querySelector(s);
   const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const hl = s => esc(s)
