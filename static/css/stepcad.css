@@ -380,3 +380,9 @@ html { scroll-behavior: smooth; }
 .work-item.all-pubs { border-top: 1px solid #ededed; border-radius: 0 0 8px 8px; margin-top: .25rem; }
 .work-item.all-pubs h5 { font-weight: 700; }
 .work-item.all-pubs .work-venue { color: #7a7a7a; font-weight: 600; }
+
+/* Per-site accent: author names and the More Works dropdown use this site's colour. */
+:root { --site-accent: #0b8a74; }
+.publication-authors a { color: var(--site-accent) !important; }
+.more-works-btn:hover { border-color: var(--site-accent); }
+.work-info .work-venue { color: var(--site-accent); }
