@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="description" content="StepCAD: Mesh-to-CAD Code Generation via LLM Policy and Geometry-Guided Search.">
+  <meta name="keywords" content="StepCAD, ARCADE, CAD, Mesh-to-CAD, CadQuery, LLM Policy, Tree Search, Program Synthesis, Reverse Engineering, CADBench">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StepCAD: Mesh-to-CAD Code Generation via LLM Policy and Geometry-Guided Search</title>
+  <meta property="og:title" content="StepCAD: Mesh-to-CAD Code Generation via LLM Policy and Geometry-Guided Search">
+  <meta property="og:description" content="A state-conditioned LLM policy writes CadQuery one operation at a time; a geometry-guided search fixes what is off. State of the art on all seven CADBench splits.">
+  <meta property="og:image" content="https://ghadinehme.com/stepcad.github.io/static/img/hero/showcase.webp">
+  <meta name="twitter:card" content="summary_large_image">
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./static/css/bulma.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="./static/css/index.css?v=20261106g">
+  <link rel="stylesheet" href="./static/css/stepcad.css?v=20261106g">
+  <link rel="stylesheet" href="./static/css/site.css?v=20261106g">
+  <link rel="icon" href="./static/images/icon.png">
+  <script defer src="./static/js/fontawesome.all.min.js"></script>
+  <script type="importmap">
+  { "imports": {
+      "three": "./static/js/three/three.module.js",
+      "three/addons/": "./static/js/three/addons/"
+  } }
+  </script>
+  <script defer src="./static/js/site.js?v=20261106g"></script>
+  <script type="module" src="./static/js/viewer.js?v=20261106g"></script>
+  <script type="module" src="./static/js/gal.js?v=20261106g"></script>
+</head>
+<body>
+
+<!-- MORE WORKS -->
+<div class="more-works-container" id="moreWorks">
+  <button class="more-works-btn" id="moreWorksBtn" aria-expanded="false" aria-controls="moreWorksDropdown">
+    <i class="fas fa-flask"></i>
+    More Works
+    <i class="fas fa-chevron-down dropdown-arrow"></i>
+  </button>
+  <div class="more-works-dropdown" id="moreWorksDropdown">
+    <div class="dropdown-header">
+      <h4>More Works</h4>
+      <button class="close-btn" id="moreWorksClose" aria-label="Close">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="works-list">
+      <a href="https://ghadinehme.com/videocad.github.io/" class="work-item">
+        <div class="work-info">
+          <h5>VideoCAD: A Dataset and Model for Learning Long-Horizon 3D CAD UI Interactions from Video</h5>
+          <p class="work-venue">NeurIPS 2025</p>
+        </div>
+        <i class="fas fa-external-link-alt"></i>
+      </a>
+      <a href="https://ghadinehme.com/cadfit.github.io/" class="work-item">
+        <div class="work-info">
+          <h5>CADFit: Precise Mesh-to-CAD Program Generation with Hybrid Optimization</h5>
+          <p class="work-venue">ICML 2026</p>
+        </div>
+        <i class="fas fa-external-link-alt"></i>
+      </a>
+      <a href="https://ghadinehme.com/lamp.github.io/" class="work-item">
+        <div class="work-info">
+          <h5>LAMP: Data-Efficient Linear Affine Weight-Space Models for Parameter-Controlled 3D Shape Generation and Extrapolation</h5>
+          <p class="work-venue">ICML 2026</p>
+        </div>
+        <i class="fas fa-external-link-alt"></i>
+      </a>
+      <a href="https://ghadinehme.com/publications.html" class="work-item all-pubs">
+        <div class="work-info">
+          <h5>All research papers by Ghadi Nehme</h5>
+          <p class="work-venue">ghadinehme.com/publications</p>
+        </div>
+        <i class="fas fa-arrow-right"></i>
+      </a>
+    </div>
+  </div>
+</div>
+
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-body">
+    <div class="container is-max-desktop has-text-centered">
+      <h1 class="title is-1 publication-title">
+        StepCAD: Mesh-to-CAD Code Generation via LLM Policy and Geometry-Guided Search
+      </h1>
+      <div class="is-size-5 publication-authors">
+        <span class="author-block"><a href="https://ghadinehme.com/" target="_blank" rel="noopener noreferrer">Ghadi Nehme</a>,</span>
+        <span class="author-block"><a href="https://decode.mit.edu/" target="_blank" rel="noopener noreferrer">Faez Ahmed</a></span>
+      </div>
+      <div class="is-size-5 publication-authors">
+        <span class="author-block">Massachusetts Institute of Technology</span>
+      </div>
+      <div class="column has-text-centered">
+        <div class="publication-links">
+          <span class="link-block">
+            <a href="https://arxiv.org/pdf/2610.03799" target="_blank" rel="noopener" class="external-link button is-normal is-rounded is-dark">
+              <span class="icon"><i class="fas fa-file-pdf"></i></span><span>Paper</span></a>
+          </span>
+          <span class="link-block">
+            <a href="https://arxiv.org/abs/2610.03799" target="_blank" rel="noopener" class="external-link button is-normal is-rounded is-dark">
+              <span class="icon"><i class="ai ai-arxiv"></i></span><span>arXiv</span></a>
+          </span>
+          <span class="link-block">
+            <a href="https://github.com/ghadinehme/StepCAD" target="_blank" rel="noopener" class="external-link button is-normal is-rounded is-dark">
+              <span class="icon"><i class="fab fa-github"></i></span><span>Code</span></a>
+          </span>
+          <span class="link-block">
+            <a href="https://huggingface.co/DeCoDELab/StepCAD" target="_blank" rel="noopener" class="external-link button is-normal is-rounded is-dark">
+              <span class="icon">🤗</span><span>Model</span></a>
+          </span>
+          <span class="link-block">
+            <a href="https://huggingface.co/datasets/DeCoDELab/ARCADE" target="_blank" rel="noopener" class="external-link button is-normal is-rounded is-dark">
+              <span class="icon"><i class="fas fa-database"></i></span><span>Dataset</span></a>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TEASER -->
+<section class="hero teaser">
+  <div class="container is-max-widescreen">
+    <img class="hero-showcase zoomable" src="./static/img/hero/showcase.webp" alt="Input meshes (grey) and the CadQuery programs StepCAD recovers for them (blue)">
+    <p class="teaser-cap has-text-centered">
+      <strong>StepCAD</strong> turns a mesh (grey) into an editable CadQuery program (blue): a policy writes the program
+      <em>one operation at a time</em> while looking at what it has built, and a geometry-guided search then fixes what is
+      still off with <em>local</em> edits.
+    </p>
+  </div>
+</section>
+
+<!-- ABSTRACT -->
+<section class="section">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Abstract</h2>
+        <div class="content has-text-justified">
+          <p>
+            Recovering <strong>executable CAD programs from 3D meshes</strong> is challenging due to the compositional nature
+            of CAD construction and the interaction between discrete modeling choices and continuous parameters. Many
+            learning-based methods predict complete programs in a single pass and rely predominantly on sketch-extrude
+            representations, limiting operation diversity and opportunities to correct geometric errors during reconstruction.
+          </p>
+          <p>
+            We introduce <strong>StepCAD</strong>, a generative optimization approach that combines a
+            <strong>state-conditioned CAD policy</strong> with <strong>geometry-guided search</strong>. Given an input mesh,
+            the policy predicts construction actions conditioned on both target and intermediate geometry, and an
+            <strong>IoU-guided tree search</strong> refines the resulting program through local edits. We also introduce
+            <strong>ARCADE</strong>, a large-scale dataset of executable CAD programs spanning diverse operations, long
+            construction sequences and dense intermediate states.
+          </p>
+          <p>
+            Experiments across multiple CAD reconstruction benchmarks show that StepCAD achieves
+            <strong>state-of-the-art geometric reconstruction accuracy</strong> with consistently high validity, with
+            particularly large gains on complex shapes.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- METHOD -->
+<section class="section section-alt" id="method">
+  <div class="container is-max-desktop has-text-centered">
+    <h2 class="title is-3">Method</h2>
+    <div class="columns is-variable is-5 method-cols has-text-left">
+      <div class="column">
+        <div class="mcard policy"><span class="stage-num">I</span>
+          <h4>Π-StepCAD: a policy conditioned on intermediate geometry</h4>
+          <p>A Qwen2.5-Coder-1.5B policy writes the CadQuery program one operation at a time. At every step it sees the
+          target point cloud and the point cloud of the shape built so far (both encoded by a shared Point-MAE), predicts
+          the next operation, and the CAD kernel executes it.</p>
+        </div>
+      </div>
+      <div class="column">
+        <div class="mcard search"><span class="stage-num">II</span>
+          <h4>Geometry-aware program search</h4>
+          <p>A beam search (K = 2) walks the program in execution order and tries four local edits at every operation:
+          <b>refine parameters</b>, <b>edit sketch</b> (profile sliced from the mesh), <b>complement cut</b> and
+          <b>skip operation</b>. Candidates are executed and ranked by IoU against the input, so the cost stays linear in
+          program length.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="container is-max-widescreen">
+    <img class="paper-fig zoomable" src="./static/img/method/overview.webp" alt="StepCAD overview: state-conditioned policy and tree search with local edits">
+  </div>
+  <div class="container is-max-desktop has-text-centered">
+    <h3 class="title is-4 sub-title">Watch a reconstruction, step by step</h3>
+    <p class="caption">Policy steps (I), then search edits (II): every step is a real CadQuery program, executed and scored by IoU against the target. Drag to orbit; click a step to jump.</p>
+      <div class="studio" id="demo">
+        <div class="studio-view">
+          <canvas id="viewer" aria-label="Interactive 3D replay of a StepCAD reconstruction"></canvas>
+          <div class="hud hud-tl">
+            <span class="split-tag" id="splitTag">CADBench</span>
+            <span class="stage-tag" id="stageTag">Stage I · Policy</span>
+            <span class="op-tag" id="opTag">extrude</span>
+          </div>
+          <div class="hud hud-tr">
+            <div class="iou-card"><span>IoU vs. input</span><b id="iouVal">0.000</b><div class="iou-bar"><i id="iouBar"></i></div></div>
+          </div>
+          <div class="hud hud-bl legend-3d" id="legend3d">
+            <span><i class="sw ghost"></i>Input mesh</span>
+            <span class="lg-policy"><i class="sw policy"></i>Policy program</span>
+            <span class="lg-search"><i class="sw search"></i>After search</span>
+          </div>
+          <div class="hud hud-br toggles">
+            <label><input type="checkbox" id="tgGhost" checked><span>Input</span></label>
+            <label><input type="checkbox" id="tgEdges" checked><span>Edges</span></label>
+            <label><input type="checkbox" id="tgSpin" checked><span>Rotate</span></label>
+          </div>
+          <div class="loading" id="viewLoading"><span></span>Loading geometry…</div>
+        </div>
+
+        <div class="studio-side">
+          <div class="side-row">
+            <div class="side-label">Example</div>
+            <div class="chips" id="exChips" role="tablist" aria-label="Examples"></div>
+          </div>
+          <div class="side-row">
+            <div class="side-label">
+              <span>Replay</span>
+              <button class="play" id="playBtn" aria-label="Pause"><i class="fas fa-pause"></i><i class="fas fa-play"></i></button>
+            </div>
+            <div class="lane"><span class="lane-name policy">I · Policy</span><ol class="steps" id="lanePolicy"></ol></div>
+            <div class="lane"><span class="lane-name search">II · Search</span><ol class="steps" id="laneSearch"></ol></div>
+            <svg class="chart" id="chart" viewBox="0 0 320 90" preserveAspectRatio="none" aria-hidden="true"></svg>
+          </div>
+          <div class="side-row grow">
+            <div class="side-label"><span id="codeTitle">CadQuery program</span></div>
+            <pre class="code" id="code" aria-label="CadQuery code"></pre>
+          </div>
+        </div>
+      </div>
+
+  </div>
+</section>
+
+<!-- RECONSTRUCTIONS -->
+<section class="section" id="results">
+  <div class="container is-max-desktop has-text-centered">
+    <h2 class="title is-3">Reconstructions</h2>
+    <p class="caption">CADBench meshes (grey) and the CadQuery programs StepCAD-3.5M recovers for them (blue). Click a part to inspect it in 3D; drag to orbit, scroll to zoom.</p>
+  </div>
+  <div class="container is-max-widescreen">
+    <div class="gal-view" id="galView">
+      <canvas id="galCanvas" aria-label="3D view of the input mesh and the reconstructed CAD program"></canvas>
+      <div class="seq-hud tl"><span class="pill" id="galSplit">CADBench</span></div>
+      <div class="seq-hud tr"><div class="iou-card"><span>IoU vs. input</span><b id="galIou">–</b></div></div>
+      <div class="gal-lab in" id="galLabIn">Input mesh</div><div class="gal-lab out" id="galLabOut">StepCAD-3.5M</div>
+      <div class="seq-hud bl seg" id="galMode"><button data-m="side" class="on">Side by side</button><button data-m="overlay">Overlay</button></div>
+      <div class="seq-hud br toggles">
+        <label><input type="checkbox" id="galEdges" checked><span>Edges</span></label>
+        <label><input type="checkbox" id="galSpin" checked><span>Rotate</span></label>
+      </div>
+      <div class="loading" id="galLoading"><span></span>Loading geometry…</div>
+    </div>
+    <div class="gal-grid" id="galGrid"></div>
+  </div>
+</section>
+
+<!-- BIBTEX -->
+<section class="section" id="BibTeX">
+  <div class="container is-max-desktop content">
+    <h2 class="title">BibTeX</h2>
+    <div class="bib-wrap">
+      <button class="button is-small copy-btn" id="copyBib"><span class="icon"><i class="far fa-copy"></i></span><span>Copy</span></button>
+      <pre><code id="bibText">@article{nehme2026stepcad,
+  title={StepCAD: Mesh-to-CAD Code Generation via LLM Policy and Geometry-Guided Search},
+  author={Nehme, Ghadi and Ahmed, Faez},
+  journal={arXiv preprint arXiv:2610.03799},
+  year={2026}
+}</code></pre>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <div class="content has-text-centered">
+      <a class="icon-link" href="https://arxiv.org/abs/2610.03799"><i class="ai ai-arxiv"></i></a>
+      <a class="icon-link" href="https://github.com/ghadinehme/StepCAD"><i class="fab fa-github"></i></a>
+      <a class="icon-link" href="https://huggingface.co/datasets/DeCoDELab/ARCADE"><i class="fas fa-database"></i></a>
+      <a class="icon-link" href="https://ghadinehme.com/"><i class="fas fa-home"></i></a>
+    </div>
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="content has-text-centered">
+          <p>Website adapted from the <a href="https://nerfies.github.io">Nerfies</a> template. © 2026 MIT DeCoDE Lab.</p>
+          <p>Licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank">CC BY-SA 4.0</a>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<div class="lightbox" id="lightbox" hidden><img alt=""><button aria-label="Close">×</button></div>
+</body>
+</html>
